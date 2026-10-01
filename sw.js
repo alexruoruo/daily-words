@@ -1,5 +1,6 @@
-/* DailyWords PWA 离线缓存: 首次在线访问后, 之后无网络也可打开 */
-const CACHE = 'dailywords-v1';
+/* DailyWords PWA 离线缓存
+   策略: HTML 网络优先(在线总能拿到最新版, 断网回退缓存); 其余资源缓存优先 */
+const CACHE = 'dailywords-v2';
 const ASSETS = ['./DailyWords.html', './manifest.json', './icon.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -16,14 +17,30 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
-  e.respondWith(
+  const url = new URL(e.request.url);
+  const isDoc = e.request.mode === 'navigate' || url.pathname.endsWith('DailyWords.html');
+
+  if (isDoc) {                                       // 页面: 网络优先, 离线用缓存
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const cp = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, cp));
+        return res;
+      }).catch(() =>
+        caches.match(e.request, { ignoreSearch: true })
+          .then(h => h || caches.match('./DailyWords.html')))
+    );
+    return;
+  }
+
+  e.respondWith(                                     // 图标等: 缓存优先
     caches.match(e.request, { ignoreSearch: true }).then(hit =>
       hit ||
       fetch(e.request).then(res => {
         const cp = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, cp));
         return res;
-      }).catch(() => caches.match('./DailyWords.html'))
+      })
     )
   );
 });
