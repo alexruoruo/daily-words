@@ -104,6 +104,9 @@ input:focus{outline:none;border-color:var(--brand)}
 .nbbox{display:flex;justify-content:flex-end;margin-bottom:8px}
 .nbb{font-size:13px;color:var(--sub);background:var(--chip);border-radius:999px;padding:6px 13px;cursor:pointer}
 .nbb.on{background:var(--nbbg);color:var(--nbink);font-weight:700}
+.navrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.navbtn{font-size:13px;color:var(--sub);background:var(--chip);border-radius:999px;padding:6px 13px;cursor:pointer}
+#navPos{font-size:12px;color:var(--sub)}
 .empty{text-align:center;color:var(--sub);padding:26px 0;font-size:14px}
 .hint{font-size:12px;color:var(--sub);line-height:1.7;margin-top:8px}
 .hide{display:none!important}
@@ -142,7 +145,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <div><div class="n" id="stAsked">0</div><div class="l">累计答题</div></div>
     <div><div class="n" id="stAcc">–</div><div class="l">正确率</div></div>
     <div><div class="n bad" id="stErr">0</div><div class="l">错题本</div></div>
-    <div><div class="n nbc" id="stNB">0</div><div class="l">生词本</div></div>
+    <div><div class="n nbc" id="stNB">0</div><div class="l">不熟本</div></div>
     <div><div class="n gold" id="stGrad">0</div><div class="l">已毕业</div></div>
   </div>
   <div class="card" id="todayCard" style="display:none">
@@ -161,7 +164,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <button class="btn" id="btnStart">开始练习</button>
     <button class="btn ghost" id="btnBook">学习记录</button>
     <div class="hint">当前档案：<b id="hintUser"></b>。答错的词自动进错题本；<b>连续答对 5 次</b>自动毕业移出，
-      期间再答错则连对次数归零重来。做题时点「☆ 不认识」把词加入<b>生词本</b>，连对 3 次自动移出。
+      期间再答错则连对次数归零重来。做题时点「⚠ 不熟」把词记入<b>不熟本</b>并直接下一词，连对 3 次自动移出。
       毕业的词会记入「已毕业」，答对过且从未错的词记入「全对词」。</div>
   </div>
 </div>
@@ -174,7 +177,12 @@ input:focus{outline:none;border-color:var(--brand)}
   </div>
   <div class="bar"><i id="bar"></i></div>
   <div class="qmeta"><span id="qNum"></span><span id="qScore"></span></div>
-  <div class="nbbox"><span class="nbb" id="btnNB">☆ 不认识，加入生词本</span></div>
+  <div class="navrow">
+    <span class="navbtn" id="btnPrev">‹ 上一词</span>
+    <span id="navPos">第 1 题</span>
+    <span class="navbtn" id="btnNext">下一词 ›</span>
+  </div>
+  <div class="nbbox"><span class="nbb" id="btnNB">⚠ 不熟 · 记入并下一词</span></div>
   <div class="qcard" id="qCard"></div>
   <div class="opts" id="opts"></div>
   <div class="fb" id="fb"></div>
@@ -205,7 +213,7 @@ input:focus{outline:none;border-color:var(--brand)}
   <div class="tabs">
     <div class="tab on" id="tabErr">错题本</div>
     <div class="tab" id="tabGrad">已毕业</div>
-    <div class="tab" id="tabNB">生词本</div>
+    <div class="tab" id="tabNB">不熟本</div>
     <div class="tab" id="tabClean">全对词</div>
   </div>
   <input type="search" id="bookSearch" placeholder="搜索单词或释义…">
@@ -344,7 +352,8 @@ function renderHome(){
 }
 
 /* ---------------- 出题 ---------------- */
-let queue = [], asked = 0, right = 0, recent = [], cur = null, roundStart = 0, gradList = [], nbOut = [], retries = {};
+let queue = [], asked = 0, right = 0, recent = [], cur = null, roundStart = 0, gradList = [], nbOut = [], retries = {},
+    log = [], view = null, planned = 0;
 function buildPool(){
   const n = Math.min(cfg.scope, N);
   const idxs = [];
@@ -359,6 +368,7 @@ function startRound(customPool){
   queue = shuffle(pool.idxs).slice(0, cfg.round);
   (pool.old || []).forEach(i => { if (!queue.includes(i)) queue.splice(Math.random()*queue.length|0, 0, i); });
   asked = 0; right = 0; recent = []; gradList = []; nbOut = []; retries = {};
+  log = []; view = null; planned = queue.length;
   roundStart = Date.now();
   $('qScope').textContent = (customPool ? '错题专练' : '词频前 ' + Math.min(cfg.scope,N)) + ' · ' + user;
   show('quiz'); next();
@@ -366,16 +376,80 @@ function startRound(customPool){
 function setNB(w){
   const on = !!nb[w];
   $('btnNB').className = 'nbb' + (on ? ' on' : '');
-  $('btnNB').textContent = on ? '⭐ 已在生词本（点此移出）' : '☆ 不认识，加入生词本';
+  $('btnNB').textContent = on ? '⚠ 已在不熟本 · 下一词' : '⚠ 不熟 · 记入并下一词';
 }
-function nbMark(){
+function nbSkip(){                                   // 记入不熟本并直接过这个词
   if (!cur) return;
   const w = W[cur.i][0];
-  if (nb[w]) delete nb[w]; else nb[w] = {s:0, t:Date.now()};
+  if (!nb[w]) nb[w] = {s:0, t:Date.now()};
   K.set(uk('nb'), nb);
-  setNB(w);
+  if (!cur.done){
+    log.push({i: cur.i, skip: true});
+    updBar();
+    next();
+  } else setNB(w);
 }
 function nbDel(w){ delete nb[w]; K.set(uk('nb'), nb); renderBook(); renderHome(); }
+function updBar(){
+  $('bar').style.width = Math.min(100, Math.round(log.length/planned*100)) + '%';
+}
+function updateNav(){
+  const live = view === null;
+  $('navPos').textContent = live ? '第 ' + (log.length+1) + ' 题' : '回顾 ' + (view+1) + '/' + log.length;
+  $('btnNext').style.visibility = live ? 'hidden' : 'visible';
+  $('btnPrev').style.opacity = live && !log.length ? '.35' : '1';
+}
+function renderQ(){                                  // 渲染当前待答的题
+  view = null;
+  const i = cur.i;
+  const [w,p,r,t] = W[i];
+  const e = err[w];
+  const en2zh = cfg.dir==='en2zh';
+  setNB(w);
+  $('btnNB').classList.remove('hide');
+  $('qCard').innerHTML = en2zh
+    ? '<div class="qword">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon">/'+esc(p)+'/</div>' : '')
+    : '<div class="qtrans">'+esc(t)+'</div>';
+  $('fb').textContent = '';
+  $('qNum').textContent = '第 ' + (log.length+1) + ' 题 · 词频第 ' + r + ' 名' + (e ? ' · 错题本连对 '+e.s+'/'+NEED : '');
+  $('qScore').textContent = '本轮 ' + right + '/' + asked;
+  const box = $('opts'); box.innerHTML = '';
+  cur.opts.forEach((j,k) => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    const [w2,p2,,t2] = W[j];
+    b.innerHTML = en2zh ? esc(t2) : '<b>'+esc(w2)+'</b>' + ((cfg.phon && p2) ? ' <span style="color:#98a2ae;font-size:13px">/'+esc(p2)+'/</span>' : '');
+    b.onclick = () => answer(k);
+    box.appendChild(b);
+  });
+  updateNav();
+}
+function prevWord(){                                 // 回顾上一词(只读)
+  if (!log.length) return;
+  if (view === null) view = log.length - 1;
+  else if (view > 0) view--;
+  renderReview();
+}
+function nextWord(){
+  if (view === null) return;
+  view++;
+  if (view >= log.length) renderQ(); else renderReview();
+}
+function renderReview(){
+  const e = log[view];
+  const [w,p,,t] = W[e.i];
+  let tag;
+  if (e.skip) tag = '<span style="color:var(--nbink);font-weight:700">⚠ 当时标记不熟跳过</span>';
+  else if (e.ok) tag = '<span style="color:var(--ok);font-weight:700">✓ 答对</span>';
+  else tag = '<span style="color:var(--bad);font-weight:700">✗ 答错</span><div style="margin-top:4px">你选「'+esc(e.chosen)+'」 · 正确「'+esc(e.right)+'」</div>';
+  $('btnNB').classList.add('hide');
+  $('opts').innerHTML = '';
+  $('fb').textContent = '';
+  $('qCard').innerHTML = '<div class="qword">'+esc(w)+'</div>' + (p?'<div class="qphon">/'+esc(p)+'/</div>':'') +
+    '<div class="qtrans" style="margin-top:8px">'+esc(t)+'</div>' +
+    '<div style="margin-top:10px;font-size:13px;color:var(--sub);text-align:left">'+tag+'</div>';
+  updateNav();
+}
 function next(){
   if(!queue.length){ return endRound(); }
   const i = queue.shift();
@@ -384,25 +458,8 @@ function next(){
   const en2zh = cfg.dir==='en2zh';
   const opts = shuffle([i, ...pickDis(i, en2zh)]);
   cur.correct = opts.indexOf(i); cur.opts = opts;
-  const [w,p,r,t] = W[i];
-  const e = err[w];
-  setNB(w);
-  $('qCard').innerHTML = en2zh
-    ? '<div class="qword">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon">/'+esc(p)+'/</div>' : '')
-    : '<div class="qtrans">'+esc(t)+'</div>';
-  $('fb').textContent = '';
-  $('bar').style.width = '0%';
-  $('qNum').textContent = '第 ' + (asked+1) + ' 题 · 词频第 ' + r + ' 名' + (e ? ' · 错题本连对 '+e.s+'/'+NEED : '');
-  $('qScore').textContent = '本轮 ' + right + '/' + asked;
-  const box = $('opts'); box.innerHTML = '';
-  opts.forEach((j,k) => {
-    const b = document.createElement('button');
-    b.className = 'opt';
-    const [w2,p2,,t2] = W[j];
-    b.innerHTML = en2zh ? esc(t2) : '<b>'+esc(w2)+'</b>' + ((cfg.phon && p2) ? ' <span style="color:#98a2ae;font-size:13px">/'+esc(p2)+'/</span>' : '');
-    b.onclick = () => answer(k);
-    box.appendChild(b);
-  });
+  updBar();
+  renderQ();
 }
 function pickDis(i, en2zh){
   const key = j => en2zh ? W[j][3] : W[j][0];
@@ -426,6 +483,9 @@ function answer(k){
   if(cur.done) return; cur.done = true;
   const w = W[cur.i][0];
   const ok = k===cur.correct;
+  log.push({i: cur.i, ok: ok, skip: false,
+    chosen: cfg.dir==='en2zh' ? W[cur.opts[k]][3] : W[cur.opts[k]][0],
+    right:  cfg.dir==='en2zh' ? W[cur.opts[cur.correct]][3] : W[cur.opts[cur.correct]][0]});
   const btns = $('opts').children;
   const r = rec[w] || {a:0, w:0, t:0};
   r.a++; r.t = Date.now();
@@ -454,14 +514,14 @@ function answer(k){
     } else {
       msg = '<span class="win">✓ 正确</span>';
     }
-    if (nb[w]){                                      // 生词本: 连对 NEEDNB 次自动移出
+    if (nb[w]){                                      // 不熟本: 连对 NEEDNB 次自动移出
       nb[w].s++;
       if (nb[w].s >= NEEDNB){
         delete nb[w];
         nbOut.push(w);
-        msg += ' <span style="color:var(--nbink);font-weight:700">⭐ 生词连对 ' + NEEDNB + ' 次，已移出生词本！</span>';
+        msg += ' <span style="color:var(--nbink);font-weight:700">⚠️ 不熟词连对 ' + NEEDNB + ' 次，已移出不熟本！</span>';
         if (delay < 1500) delay = 1500;
-      } else msg += ' · 生词连对 ' + nb[w].s + '/' + NEEDNB;
+      } else msg += ' · 不熟词连对 ' + nb[w].s + '/' + NEEDNB;
     }
   } else {
     r.w++;
@@ -475,14 +535,15 @@ function answer(k){
     } else {
       err[w] = {n:1, s:0, t: Date.now()};
     }
-    if (nb[w]) nb[w].s = 0;                          // 生词连对同样归零
+    if (nb[w]) nb[w].s = 0;                          // 不熟词连对同样归零
     msg = '✗ 错误 · 累计错 <b>' + err[w].n + '</b> 次' +
           (was && was.s ? ' · 连对 ' + was.s + ' 次已归零' : '') + '（需连对 ' + NEED + ' 次才能毕业）' +
-          (nb[w] ? ' · 生词连对归零' : '');
+          (nb[w] ? ' · 不熟词连对归零' : '');
     delay = 1800;
     if ((retries[w] || 0) < 2){                    // 排队尾重现, 每词每轮最多2次, 保证本轮可结束
       retries[w] = (retries[w] || 0) + 1;
       queue.push(cur.i);
+      planned++;
     }
   }
   rec[w] = r;
@@ -490,6 +551,7 @@ function answer(k){
   K.set(uk('hist'), hist); K.set(uk('stats'), stats);
   $('qScore').textContent = '本轮 ' + right + '/' + asked;
   $('fb').innerHTML = msg;
+  updBar();
   setTimeout(next, delay);
 }
 function endRound(){
@@ -502,7 +564,7 @@ function endRound(){
   } else $('rGrad').classList.add('hide');
   if (nbOut.length){
     $('rNB').classList.remove('hide');
-    $('rNB').textContent = '⭐ 本轮移出生词本 ' + nbOut.length + ' 词：' + nbOut.slice(0,8).join(', ') + (nbOut.length>8?'…':'');
+    $('rNB').textContent = '⚠️ 本轮移出不熟本 ' + nbOut.length + ' 词：' + nbOut.slice(0,8).join(', ') + (nbOut.length>8?'…':'');
   } else $('rNB').classList.add('hide');
   const list = Object.keys(rec).map(w => ({w, r: rec[w]}))
     .filter(x => x.r.t >= roundStart && x.r.w > 0 && err[x.w])
@@ -543,7 +605,7 @@ function renderBook(){
   $('tabClean').className = 'tab' + (bookTab==='clean'?' on':'');
   $('tabErr').textContent   = '错题本（'+Object.keys(err).length+'）';
   $('tabGrad').textContent  = '已毕业（'+Object.keys(grad).length+'）';
-  $('tabNB').textContent    = '生词本（'+Object.keys(nb).length+'）';
+  $('tabNB').textContent    = '不熟本（'+Object.keys(nb).length+'）';
   $('tabClean').textContent = '全对词（'+Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w]).length+'）';
   const rows = bookRows();
   $('bookInfo').textContent = user + ' · ' + rows.length + ' 个词';
@@ -552,7 +614,7 @@ function renderBook(){
     let badge, sub;
     if (bookTab==='err'){ badge = '<span class="c">×'+e.e.n+'</span>'; sub = '连对'+e.e.s+'/'+NEED+' · 答'+(rec[w]?rec[w].a:0)+'次 · '+fmtT(e.e.t); }
     else if (bookTab==='grad'){ badge = '<span class="c gd">🎓毕业</span>'; sub = '曾错 '+e.g.n+' 次 · '+fmtT(e.g.t)+' 毕业'; }
-    else if (bookTab==='nb'){ badge = '<span class="c nbw">⭐</span>'; sub = '连对'+e.b.s+'/'+NEEDNB+' · 加入 '+fmtT(e.b.t); }
+    else if (bookTab==='nb'){ badge = '<span class="c nbw">⚠</span>'; sub = '连对'+e.b.s+'/'+NEEDNB+' · 加入 '+fmtT(e.b.t); }
     else { badge = '<span class="c ok">✓全对</span>'; sub = '答'+e.r.a+'次 · '+fmtT(e.r.t); }
     return '<div class="wrow"><div class="wrank">#'+rk+'</div><div class="wbody">'+
       '<span class="w">'+esc(w)+'</span>'+(p?'<span class="p">/'+esc(p)+'/</span>':'')+
@@ -561,14 +623,14 @@ function renderBook(){
       '</div></div>';
   }).join('') : '<div class="empty">'+(bookSearch.value?'没有匹配的记录':
     (bookTab==='err'?'错题本是空的——答错的词会自动进来':
-     bookTab==='nb'?'生词本是空的——做题时点「☆ 不认识」加入':'没有记录'))+'</div>';
+     bookTab==='nb'?'不熟本是空的——做题时点「⚠ 不熟」加入':'没有记录'))+'</div>';
   $('btnDrill').textContent = bookTab==='err' ? '只练错题本（冲刺毕业）'
     : bookTab==='grad' ? '复习毕业词'
-    : bookTab==='nb' ? '只练生词本（过词冲刺）' : '巩固练习全对词';
+    : bookTab==='nb' ? '只练不熟本（过词冲刺）' : '巩固练习全对词';
 }
 function exportBook(){
   const rows = bookRows();
-  const name = bookTab==='err' ? '错题本' : bookTab==='grad' ? '已毕业' : bookTab==='nb' ? '生词本' : '全对词';
+  const name = bookTab==='err' ? '错题本' : bookTab==='grad' ? '已毕业' : bookTab==='nb' ? '不熟本' : '全对词';
   const lines = ['用户\t分类\t词频\t单词\t音标\t累计错误\t连续正确\t答题次数\t最近时间\t释义'];
   rows.forEach(e => { const [w,p,rk,t] = W[e.i];
     const n = bookTab==='err' ? err[w].n : (bookTab==='grad' ? grad[w].n : 0);
@@ -631,7 +693,9 @@ $('tabErr').onclick   = () => { bookTab='err';   renderBook(); };
 $('tabGrad').onclick  = () => { bookTab='grad';  renderBook(); };
 $('tabClean').onclick = () => { bookTab='clean'; renderBook(); };
 $('bookSearch').oninput = renderBook;
-$('btnNB').onclick = nbMark;
+$('btnNB').onclick = nbSkip;
+$('btnPrev').onclick = prevWord;
+$('btnNext').onclick = nextWord;
 $('tabNB').onclick  = () => { bookTab='nb';    renderBook(); };
 $('btnDrill').onclick = () => {
   const kw = $('bookSearch').value.trim().toLowerCase();
