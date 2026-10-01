@@ -154,6 +154,8 @@ input:focus{outline:none;border-color:var(--brand)}
   <div class="card">
     <div class="lbl">词频范围（COCA 美式英语）</div>
     <div class="chips" id="scopeChips"></div>
+    <div class="lbl">之前练过的词</div>
+    <div class="chips" id="freshChips"></div>
     <div class="lbl">每轮题量</div>
     <div class="chips" id="roundChips"></div>
     <div class="lbl">出题方向</div>
@@ -165,7 +167,8 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="hint">当前档案：<b id="hintUser"></b>。答错的词自动进错题本，<b>答错后不自动跳题</b>——
       可细看这个词，点「下一词 ›」再继续；<b>连续答对 5 次</b>自动毕业移出错题本，期间再答错则连对归零。
       做题时点「⚠ 不熟」把词记入<b>不熟本</b>并直接下一词，回顾上一词时也可补记；连对 3 次自动移出不熟本。
-      毕业的词会记入「已毕业」，答对过且从未错的词记入「全对词」。音标为英式（DJ 音标）。</div>
+      毕业的词会记入「已毕业」，答对过且从未错的词记入「全对词」。音标为英式（DJ 音标）。
+      「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。</div>
   </div>
 </div>
 
@@ -276,7 +279,8 @@ function loadUser(name){
   nb    = K.get(uk('nb'), {});
   hist  = K.get(uk('hist'), {});
   stats = K.get(uk('stats'), {asked:0, right:0, grad:0});
-  cfg   = K.get(uk('cfg'), {scope:5000, dir:'en2zh', phon:1, round:50});
+  cfg   = K.get(uk('cfg'), {scope:5000, dir:'en2zh', phon:1, round:50, fresh:0});
+  if (cfg.fresh === undefined) cfg.fresh = 0;         // 旧档案补默认: 允许重复
   K.set('hv.cur', user);
 }
 function createUser(name){
@@ -330,6 +334,8 @@ function renderHome(){
   $('stGrad').textContent = Object.keys(grad).length;
   mkChips('scopeChips', SCOPES.map(s => ({v:s, t: s===N?'全部 '+s:'前 '+s})),
     v => cfg.scope===v, v => cfg.scope=v);
+  mkChips('freshChips', [{v:0,t:'可重复出现'},{v:1,t:'只出新词'}],
+    v => (+cfg.fresh||0)===v, v => cfg.fresh=v);
   mkChips('roundChips', [20,50,100].map(r => ({v:r, t:r+' 题/轮'})),
     v => cfg.round===v, v => cfg.round=v);
   mkChips('dirChips', [{v:'en2zh',t:'看单词 → 选释义'},{v:'zh2en',t:'看释义 → 选单词'}],
@@ -355,21 +361,35 @@ let queue = [], asked = 0, right = 0, recent = [], cur = null, roundStart = 0, g
     log = [], view = null, planned = 0, waitNext = false;
 function buildPool(){
   const n = Math.min(cfg.scope, N);
-  const idxs = [];
+  let idxs = [];
   for(let i=0;i<n;i++) idxs.push(i);
-  const old = Object.keys(err).map(w => W.findIndex(x => x[0]===w))
+  let old = Object.keys(err).map(w => W.findIndex(x => x[0]===w))
     .filter(i => i>=0 && i<n);
   old.sort((a,b) => err[W[b][0]].s - err[W[a][0]].s || err[W[b][0]].n - err[W[a][0]].n); // 连对少/错误多的优先
-  return { idxs, old: old.slice(0, Math.max(20, Math.floor(cfg.round/3))) };
+  old = old.slice(0, Math.max(20, Math.floor(cfg.round/3)));
+  if (+cfg.fresh){                                    // 只出新词: 剔除练过(rec)或跳过(nb)的词, 错题注入暂停
+    const seen = w => !!(rec[w] || nb[w]);
+    idxs = idxs.filter(i => !seen(W[i][0]));
+    old = [];
+  }
+  return { idxs, old };
 }
 function startRound(customPool){
-  const pool = customPool || buildPool();
+  let pool = customPool || buildPool();
+  let freshMode = !customPool && !!+cfg.fresh;        // 只出新词模式(专练轮不适用)
+  if (freshMode && !pool.idxs.length){                // 新词练完: 自动回退为可重复出题
+    alert('「只出新词」：当前词频范围内的新词已全部练完，本轮改为可重复出题');
+    const f = cfg.fresh; cfg.fresh = 0;
+    pool = buildPool();
+    cfg.fresh = f;
+    freshMode = false;
+  }
   queue = shuffle(pool.idxs).slice(0, cfg.round);
   (pool.old || []).forEach(i => { if (!queue.includes(i)) queue.splice(Math.random()*queue.length|0, 0, i); });
   asked = 0; right = 0; recent = []; gradList = []; nbOut = []; retries = {};
   log = []; view = null; planned = queue.length;
   roundStart = Date.now();
-  $('qScope').textContent = (customPool ? '错题专练' : '词频前 ' + Math.min(cfg.scope,N)) + ' · ' + user;
+  $('qScope').textContent = (customPool ? '错题专练' : '词频前 ' + Math.min(cfg.scope,N) + (freshMode ? ' · 只出新词' : '')) + ' · ' + user;
   show('quiz'); next();
 }
 let nbBtn = null;                                    // 第5个"不熟"选项按钮
@@ -740,7 +760,8 @@ $('btnClear').onclick = () => {
     rec = {};
     Object.entries(oldWrong).forEach(([w,v]) => rec[w] = {a: v.n||1, w: v.n||1, t: v.t||Date.now()});
     stats = K.get('hv.stats', null) || {asked:0, right:0};
-    cfg = K.get('hv.cfg', null) || {scope:5000, dir:'en2zh', phon:1, round:50};
+    cfg = K.get('hv.cfg', null) || {scope:5000, dir:'en2zh', phon:1, round:50, fresh:0};
+    if (cfg.fresh === undefined) cfg.fresh = 0;
     err = {}; grad = {}; nb = {}; hist = {};
     Object.keys(rec).forEach(w => { if (rec[w].w>0) err[w] = {n:rec[w].w, s:0, t:rec[w].t}; });
     saveAll();
