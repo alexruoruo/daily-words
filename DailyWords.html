@@ -101,9 +101,8 @@ input:focus{outline:none;border-color:var(--brand)}
 .wn .d{font-size:11px;color:#98a2ae;margin-top:4px}
 .wn .c.nbw{background:var(--nbbg);color:var(--nbink)}
 .rm{margin-left:6px;color:#98a2ae;cursor:pointer;font-size:12px;padding:2px 7px;border-radius:99px;background:var(--chip);white-space:nowrap}
-.nbbox{display:flex;justify-content:flex-end;margin-bottom:8px}
-.nbb{font-size:13px;color:var(--sub);background:var(--chip);border-radius:999px;padding:6px 13px;cursor:pointer}
-.nbb.on{background:var(--nbbg);color:var(--nbink);font-weight:700}
+.opt.nb5{border-color:var(--nbbg);background:var(--nbbg);color:var(--nbink);font-weight:700;text-align:center}
+.opt.nb5.on{background:var(--nbink);border-color:var(--nbink);color:#fff}
 .navrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .navbtn{font-size:13px;color:var(--sub);background:var(--chip);border-radius:999px;padding:6px 13px;cursor:pointer}
 #navPos{font-size:12px;color:var(--sub)}
@@ -182,7 +181,6 @@ input:focus{outline:none;border-color:var(--brand)}
     <span id="navPos">第 1 题</span>
     <span class="navbtn" id="btnNext">下一词 ›</span>
   </div>
-  <div class="nbbox"><span class="nbb" id="btnNB">⚠ 不熟 · 记入并下一词</span></div>
   <div class="qcard" id="qCard"></div>
   <div class="opts" id="opts"></div>
   <div class="fb" id="fb"></div>
@@ -373,10 +371,13 @@ function startRound(customPool){
   $('qScope').textContent = (customPool ? '错题专练' : '词频前 ' + Math.min(cfg.scope,N)) + ' · ' + user;
   show('quiz'); next();
 }
+let nbBtn = null;                                    // 第5个"不熟"选项按钮
 function setNB(w){
+  const b = nbBtn;
+  if (!b) return;
   const on = !!nb[w];
-  $('btnNB').className = 'nbb' + (on ? ' on' : '');
-  $('btnNB').textContent = on ? '⚠ 已在不熟本 · 下一词' : '⚠ 不熟 · 记入并下一词';
+  b.className = 'opt nb5' + (on ? ' on' : '');
+  b.textContent = on ? '⚠ 已在不熟本 · 下一词' : '⚠ 不熟 · 记入并下一词';
 }
 function nbSkip(){                                   // 记入不熟本并直接过这个词
   if (!cur) return;
@@ -405,8 +406,6 @@ function renderQ(){                                  // 渲染当前待答的题
   const [w,p,r,t] = W[i];
   const e = err[w];
   const en2zh = cfg.dir==='en2zh';
-  setNB(w);
-  $('btnNB').classList.remove('hide');
   $('qCard').innerHTML = en2zh
     ? '<div class="qword">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon">/'+esc(p)+'/</div>' : '')
     : '<div class="qtrans">'+esc(t)+'</div>';
@@ -422,6 +421,12 @@ function renderQ(){                                  // 渲染当前待答的题
     b.onclick = () => answer(k);
     box.appendChild(b);
   });
+  const b5 = document.createElement('button');       // 第5个选项: 不熟, 记入并下一词
+  b5.className = 'opt nb5';
+  b5.onclick = nbSkip;
+  nbBtn = b5;
+  box.appendChild(b5);
+  setNB(w);
   updateNav();
 }
 function prevWord(){                                 // 回顾上一词(只读)
@@ -442,7 +447,6 @@ function renderReview(){
   if (e.skip) tag = '<span style="color:var(--nbink);font-weight:700">⚠ 当时标记不熟跳过</span>';
   else if (e.ok) tag = '<span style="color:var(--ok);font-weight:700">✓ 答对</span>';
   else tag = '<span style="color:var(--bad);font-weight:700">✗ 答错</span><div style="margin-top:4px">你选「'+esc(e.chosen)+'」 · 正确「'+esc(e.right)+'」</div>';
-  $('btnNB').classList.add('hide');
   $('opts').innerHTML = '';
   $('fb').textContent = '';
   $('qCard').innerHTML = '<div class="qword">'+esc(w)+'</div>' + (p?'<div class="qphon">/'+esc(p)+'/</div>':'') +
@@ -693,7 +697,6 @@ $('tabErr').onclick   = () => { bookTab='err';   renderBook(); };
 $('tabGrad').onclick  = () => { bookTab='grad';  renderBook(); };
 $('tabClean').onclick = () => { bookTab='clean'; renderBook(); };
 $('bookSearch').oninput = renderBook;
-$('btnNB').onclick = nbSkip;
 $('btnPrev').onclick = prevWord;
 $('btnNext').onclick = nextWord;
 $('tabNB').onclick  = () => { bookTab='nb';    renderBook(); };
