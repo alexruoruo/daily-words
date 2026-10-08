@@ -13,12 +13,13 @@
   --bg:#f0f3f8; --card:#ffffff; --ink:#1c2b45; --sub:#61708c; --line:#e3e9f2;
   --brand:#2f5fa8; --brand2:#4a7fd4; --ok:#1e9e62; --bad:#d64545; --okbg:#e8f7ef; --badbg:#fdeeee;
   --chip:#eaf0fa; --chipon:#2f5fa8; --goldbg:#fdf6e0; --gold:#b8860b;
-  --nbbg:#efe9fd; --nbink:#7a5cd6;
+  --nbbg:#efe9fd; --nbink:#7a5cd6; --membg:#dff3f0; --memink:#0d7a6f;
 }
 @media (prefers-color-scheme: dark){
   :root{ --bg:#12161f; --card:#1b2230; --ink:#e8edf6; --sub:#94a2ba; --line:#2a3447;
          --chip:#232d40; --ok:#3ecf8e; --bad:#ff7b7b; --okbg:#12301f; --badbg:#3a1d1d;
-         --goldbg:#3a331a; --gold:#e6c35c; --nbbg:#2c2547; --nbink:#c3b0f5; }
+         --goldbg:#3a331a; --gold:#e6c35c; --nbbg:#2c2547; --nbink:#c3b0f5;
+         --membg:#11302c; --memink:#7fd8cf; }
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
 body{margin:0; font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
@@ -32,12 +33,13 @@ header .cnt{font-size:12px;color:var(--sub)}
 .uchip{margin-left:auto;display:flex;align-items:center;gap:6px;background:var(--chip);border-radius:999px;
   padding:6px 12px;font-size:13px;cursor:pointer;color:var(--ink);flex:none}
 .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;text-align:center}
-.stats .n{font-size:17px;font-weight:800;color:var(--brand)}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;text-align:center}
+.stats .n{font-size:16px;font-weight:800;color:var(--brand)}
 .stats .n.bad{color:var(--bad)}
 .stats .n.gold{color:var(--gold)}
 .stats .n.nbc{color:var(--nbink)}
-.stats .l{font-size:11px;color:var(--sub);margin-top:2px}
+.stats .n.memc{color:var(--memink)}
+.stats .l{font-size:10px;color:var(--sub);margin-top:2px}
 .today{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
 .today b{font-size:15px}
 .week{display:flex;gap:6px;align-items:flex-end;height:60px}
@@ -84,8 +86,8 @@ input:focus{outline:none;border-color:var(--brand)}
 .fb .grad{color:var(--gold);font-weight:700}
 .res{text-align:center}
 .res .big{font-size:44px;font-weight:800;color:var(--brand)}
-.tabs{display:flex;gap:8px;margin-bottom:10px}
-.tab{flex:1;text-align:center;padding:9px 0;border-radius:10px;background:var(--chip);font-size:13px;cursor:pointer}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.tab{flex:1 1 30%;min-width:0;text-align:center;padding:9px 6px;border-radius:10px;background:var(--chip);font-size:12px;cursor:pointer;white-space:nowrap}
 .tab.on{background:var(--chipon);color:#fff;font-weight:700}
 .wrow{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
 .wrow:last-child{border:none}
@@ -100,12 +102,16 @@ input:focus{outline:none;border-color:var(--brand)}
 .wn .c.gd{background:var(--goldbg);color:var(--gold)}
 .wn .d{font-size:11px;color:#98a2ae;margin-top:4px}
 .wn .c.nbw{background:var(--nbbg);color:var(--nbink)}
+.wn .c.mem{background:var(--membg);color:var(--memink)}
 .rm{margin-left:6px;color:#98a2ae;cursor:pointer;font-size:12px;padding:2px 7px;border-radius:99px;background:var(--chip);white-space:nowrap}
 .opt.nb5{border-color:var(--nbbg);background:var(--nbbg);color:var(--nbink);font-weight:700;text-align:center}
 .opt.nb5.on{background:var(--nbink);border-color:var(--nbink);color:#fff}
 .navrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .navbtn{font-size:13px;color:var(--sub);background:var(--chip);border-radius:999px;padding:6px 13px;cursor:pointer}
 #navPos{font-size:12px;color:var(--sub)}
+.navnext{display:block;width:100%;margin-top:10px;padding:13px;border:1.5px solid var(--line);border-radius:12px;
+  background:var(--card);color:var(--brand);font-weight:700;font-size:15px;cursor:pointer}
+.navnext:active{transform:scale(.98)}
 .empty{text-align:center;color:var(--sub);padding:26px 0;font-size:14px}
 .hint{font-size:12px;color:var(--sub);line-height:1.7;margin-top:8px}
 .hide{display:none!important}
@@ -146,6 +152,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <div><div class="n bad" id="stErr">0</div><div class="l">错题本</div></div>
     <div><div class="n nbc" id="stNB">0</div><div class="l">不熟本</div></div>
     <div><div class="n gold" id="stGrad">0</div><div class="l">已毕业</div></div>
+    <div><div class="n memc" id="stMem">0</div><div class="l">熟记本</div></div>
   </div>
   <div class="card" id="todayCard" style="display:none">
     <div class="today"><span style="color:var(--sub);font-size:13px">近 7 天答题量</span><span id="todayTxt" style="font-size:13px;color:var(--sub)"></span></div>
@@ -154,8 +161,10 @@ input:focus{outline:none;border-color:var(--brand)}
   <div class="card">
     <div class="lbl" style="margin-top:0">词库</div>
     <div class="chips" id="bankChips"></div>
-    <div class="lbl" id="scopeLbl">词频范围（COCA 美式英语）</div>
+    <div class="lbl" id="scopeLbl">词频范围（COCA 词频名次 · 每 1000 词一段）</div>
     <div class="chips" id="scopeChips"></div>
+    <div class="lbl">出题顺序</div>
+    <div class="chips" id="orderChips"></div>
     <div class="lbl">之前练过的词</div>
     <div class="chips" id="freshChips"></div>
     <div class="lbl">每轮题量</div>
@@ -167,11 +176,13 @@ input:focus{outline:none;border-color:var(--brand)}
     <button class="btn" id="btnStart">开始练习</button>
     <button class="btn ghost" id="btnBook">学习记录</button>
     <div class="hint">当前档案：<b id="hintUser"></b>。答错的词自动进错题本，<b>答错后不自动跳题</b>——
-      可细看这个词，点「下一词 ›」再继续；<b>连续答对 5 次</b>自动毕业移出错题本，期间再答错则连对归零。
+      可细看这个词，点卡片下方「下一词 ›」再继续；<b>连续答对 5 次</b>自动毕业移出错题本，期间再答错则连对归零。
       做题时点「⚠ 不熟」把词记入<b>不熟本</b>并直接下一词，回顾上一词时也可补记；连对 3 次自动移出不熟本。
-      毕业的词会记入「已毕业」，答对过且从未错的词记入「全对词」。音标为英式（DJ 音标）。
+      同一个词<b>累计答对 10 次</b>会记入<b>熟记本</b>（之后再答错则移出）。毕业的词记入「已毕业」，答对过且从没错的词记入「全对词」。音标为英式（DJ 音标）。
+      <b>词频范围</b>按名次分 5 段：1-1000 / 1001-2000 / 2001-3000 / 3001-4000 / 4001-5000，只对日常词库生效。
+      <b>出题顺序</b>可选「按顺序(词频)」「乱序」「按字母 A-Z」；按顺序与 A-Z 会记住上次练到的位置，下一轮接着往下背，练到末尾回到开头。
       「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。
-      <b>词库</b>可在「日常高频」「计算机专业」(IT 术语)、「外贸专用」(函电/物流/结算/报关)、「四六级」(大纲词)、「托福雅思」(留学考试词)间切换，后四个词库均只收日常词库没有的词；词频范围只对日常词库生效，错题本/不熟本等记录各词库共用。</div>
+      <b>词库</b>可在「日常高频」「计算机专业」(IT 术语)、「外贸专用」(函电/物流/结算/报关)、「四六级」(大纲词)、「托福雅思」(留学考试词)间切换，后四个词库均只收日常词库没有的词；错题本/不熟本/熟记本等记录各词库共用。</div>
   </div>
 </div>
 
@@ -186,10 +197,10 @@ input:focus{outline:none;border-color:var(--brand)}
   <div class="navrow">
     <span class="navbtn" id="btnPrev">‹ 上一词</span>
     <span id="navPos">第 1 题</span>
-    <span class="navbtn" id="btnNext">下一词 ›</span>
   </div>
   <div class="qcard" id="qCard"></div>
   <div class="opts" id="opts"></div>
+  <button class="navnext" id="btnNext">下一词 ›</button>
   <div class="fb" id="fb"></div>
 </div>
 
@@ -201,6 +212,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <div style="color:var(--sub);font-size:14px;margin:4px 0 6px" id="rDetail"></div>
     <div id="rGrad" class="hide" style="background:var(--goldbg);color:var(--gold);font-weight:700;font-size:14px;border-radius:10px;padding:9px;margin-bottom:8px"></div>
     <div id="rNB" class="hide" style="background:var(--nbbg);color:var(--nbink);font-weight:700;font-size:14px;border-radius:10px;padding:9px;margin-bottom:8px"></div>
+    <div id="rMem" class="hide" style="background:var(--membg);color:var(--memink);font-weight:700;font-size:14px;border-radius:10px;padding:9px;margin-bottom:8px"></div>
     <div id="rWrongList" style="text-align:left;margin:0 0 6px"></div>
     <div class="row">
       <button class="btn" style="margin:0" id="btnAgain">再来一轮</button>
@@ -219,6 +231,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="tab on" id="tabErr">错题本</div>
     <div class="tab" id="tabGrad">已毕业</div>
     <div class="tab" id="tabNB">不熟本</div>
+    <div class="tab" id="tabMem">熟记本</div>
     <div class="tab" id="tabClean">全对词</div>
   </div>
   <input type="search" id="bookSearch" placeholder="搜索单词或释义…">
@@ -260,15 +273,16 @@ const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;
 const uk = k => 'hv.u.' + user + '.' + k;
 const NEED = 5;                                    // 错题本毕业: 连续答对次数
 const NEEDNB = 3;                                  // 生词本移出: 连续答对次数
+const NEEDMEM = 10;                                // 熟记本: 累计答对次数
 
 /* ---------------- 用户档案 ---------------- */
 let users = K.get('hv.users', null) || [];
 let user  = K.get('hv.cur', null);
-let rec, err, grad, hist, stats, cfg, nb;
+let rec, err, grad, hist, stats, cfg, nb, mem;
 
 function saveAll(){
   K.set('hv.users', users); K.set('hv.cur', user);
-  K.set(uk('rec'), rec); K.set(uk('err'), err); K.set(uk('grad'), grad); K.set(uk('nb'), nb);
+  K.set(uk('rec'), rec); K.set(uk('err'), err); K.set(uk('grad'), grad); K.set(uk('nb'), nb); K.set(uk('mem'), mem);
   K.set(uk('hist'), hist); K.set(uk('stats'), stats); K.set(uk('cfg'), cfg);
 }
 function loadUser(name){
@@ -282,12 +296,15 @@ function loadUser(name){
   }
   grad  = K.get(uk('grad'), {});
   nb    = K.get(uk('nb'), {});
+  mem   = K.get(uk('mem'), {});
   hist  = K.get(uk('hist'), {});
   stats = K.get(uk('stats'), {asked:0, right:0, grad:0});
-  cfg   = K.get(uk('cfg'), {scope:5000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily'});
+  cfg   = K.get(uk('cfg'), {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily'});
   if (cfg.fresh === undefined) cfg.fresh = 0;         // 旧档案补默认: 允许重复
   if (!cfg.bank) cfg.bank = 'daily';
-  if (!cfg.scope || cfg.scope > DAILY_N) cfg.scope = DAILY_N;  // 日常库缩减到5000: 旧范围归一
+  if (!cfg.order) cfg.order = 'rand';                 // 旧档案补默认: 乱序出题
+  if (!cfg.cursor || typeof cfg.cursor !== 'object') cfg.cursor = {};  // 顺序/A-Z 续背位置
+  if (!SEGS.some(x => x[1] === +cfg.scope)) cfg.scope = 1000;  // 词频段: 异常值归到第1段
   K.set('hv.cur', user);
 }
 function createUser(name){
@@ -329,7 +346,9 @@ function mkChips(boxId, items, isOn, onPick){
     box.appendChild(c);
   });
 }
-const SCOPES = [1000, 3000, DAILY_N];
+const SEGS = [[1,1000],[1001,2000],[2001,3000],[3001,4000],[4001,DAILY_N]];  // 词频名次分5段, 每段1000词
+const segOf  = s => SEGS.find(x => x[1] === +s) || SEGS[SEGS.length-1];
+const segLbl = s => { const x = segOf(s); return x[0] + '-' + x[1]; };
 // 五词库定义: 索引区间 [lo,hi) 依次相接; daily 的 hi 受词频范围裁剪
 const BANK_DEF = [
   {k:'daily', chip:'日常高频 '+DAILY_N, name:'日常高频 '+DAILY_N+' 词', badge:null, lbl:null, lo:0, hi:DAILY_N},
@@ -339,10 +358,11 @@ const BANK_DEF = [
   {k:'ti',    chip:'托福雅思 '+TI_N,    name:'托福雅思 '+TI_N+' 词',    badge:'IEL', lbl:'留学词',   lo:CET_END, hi:N},
 ];
 const BANKS = {}; BANK_DEF.forEach(b => BANKS[b.k] = () => b.name);
+const ORDER_LBL = {seq:'按词频顺序', rand:'乱序', az:'按字母 A-Z'};
 function bankOf(i){ return BANK_DEF.find(b => i < b.hi) || BANK_DEF[BANK_DEF.length-1]; }
 function bankDef(k){ return BANK_DEF.find(b => b.k === k) || BANK_DEF[0]; }
-function bankLo(b){ return bankDef(b).lo; }
-function bankHi(b){ const d = bankDef(b); return d.k==='daily' ? Math.min(cfg.scope, DAILY_N) : d.hi; }
+function bankLo(b){ const d = bankDef(b); return d.k==='daily' ? segOf(cfg.scope)[0]-1 : d.lo; }  // 日常按词频段取词
+function bankHi(b){ const d = bankDef(b); return d.k==='daily' ? Math.min(segOf(cfg.scope)[1], DAILY_N) : d.hi; }
 function iLo(i){ return bankOf(i).lo; }                    // 词 i 所属词库区间(干扰项同库)
 function iHi(i){ return bankHi(bankOf(i).k); }
 function rankLbl(i, r){ const d = bankOf(i); return d.k==='daily' ? '词频第 '+r+' 名' : d.lbl+' #'+r; }
@@ -356,13 +376,16 @@ function renderHome(){
   $('stErr').textContent = Object.keys(err).length;
   $('stNB').textContent = Object.keys(nb).length;
   $('stGrad').textContent = Object.keys(grad).length;
+  $('stMem').textContent = Object.keys(mem).length;
   mkChips('bankChips', BANK_DEF.map(b => ({v:b.k, t:b.chip})),
     v => cfg.bank===v, v => cfg.bank=v);
   const isCS = cfg.bank!=='daily';                     // 词频范围只对日常词库生效
   $('scopeLbl').style.display = isCS ? 'none' : '';
   $('scopeChips').style.display = isCS ? 'none' : '';
-  mkChips('scopeChips', SCOPES.map(s => ({v:s, t: s===DAILY_N?'日常全部 '+s:'前 '+s})),
+  mkChips('scopeChips', SEGS.map(s => ({v:s[1], t: s[0]+'-'+s[1]})),
     v => cfg.scope===v, v => cfg.scope=v);
+  mkChips('orderChips', [{v:'seq',t:'按顺序（词频）'},{v:'rand',t:'乱序'},{v:'az',t:'按字母 A-Z'}],
+    v => cfg.order===v, v => cfg.order=v);
   mkChips('freshChips', [{v:0,t:'可重复出现'},{v:1,t:'只出新词'}],
     v => (+cfg.fresh||0)===v, v => cfg.fresh=v);
   mkChips('roundChips', [20,50,100].map(r => ({v:r, t:r+' 题/轮'})),
@@ -386,7 +409,7 @@ function renderHome(){
 }
 
 /* ---------------- 出题 ---------------- */
-let queue = [], asked = 0, right = 0, recent = [], cur = null, roundStart = 0, gradList = [], nbOut = [], retries = {},
+let queue = [], asked = 0, right = 0, recent = [], cur = null, roundStart = 0, gradList = [], nbOut = [], memList = [], retries = {},
     log = [], view = null, planned = 0, waitNext = false;
 function buildPool(){
   const lo = bankLo(cfg.bank), hi = bankHi(cfg.bank);
@@ -403,6 +426,19 @@ function buildPool(){
   }
   return { idxs, old };
 }
+function orderSort(idxs){                            // 顺序: 按索引(即词频排名); A-Z: 按单词字母升序
+  const a = idxs.slice();
+  if (cfg.order === 'az')
+    return a.sort((x,y) => W[x][0].toLowerCase() < W[y][0].toLowerCase() ? -1 : 1);
+  return a.sort((x,y) => x - y);
+}
+function takeOrdered(idxs, n, useCursor){            // 按顺序/A-Z 取词; useCursor 时接着上次的位置往下背
+  const sorted = orderSort(idxs);
+  if (!sorted.length) return [];
+  if (cfg.order === 'rand' || !useCursor) return sorted.slice(0, n);
+  const start = (+cfg.cursor[cfg.order] || 0) % sorted.length;
+  return sorted.slice(start).concat(sorted.slice(0, start)).slice(0, n);  // 到末尾自动回头
+}
 function startRound(customPool){
   let pool = customPool || buildPool();
   let freshMode = !customPool && !!+cfg.fresh;        // 只出新词模式(专练轮不适用)
@@ -413,14 +449,26 @@ function startRound(customPool){
     cfg.fresh = f;
     freshMode = false;
   }
-  queue = shuffle(pool.idxs).slice(0, cfg.round);
-  (pool.old || []).forEach(i => { if (!queue.includes(i)) queue.splice(Math.random()*queue.length|0, 0, i); });
-  asked = 0; right = 0; recent = []; gradList = []; nbOut = []; retries = {};
+  const ordered = cfg.order !== 'rand';
+  const useCursor = ordered && !freshMode && !customPool;  // 专练轮/只出新词 不动续背游标
+  if (ordered){
+    const cursorBefore = +cfg.cursor[cfg.order] || 0;
+    const base = takeOrdered(pool.idxs, cfg.round, useCursor);
+    if (useCursor && pool.idxs.length){               // 游标前进本轮词量
+      cfg.cursor[cfg.order] = (cursorBefore + base.length) % pool.idxs.length;
+      K.set(uk('cfg'), cfg);
+    }
+    queue = base.concat((pool.old || []).filter(i => !base.includes(i)));   // 错题附在本轮末尾, 不打乱续背顺序
+  } else {
+    queue = shuffle(pool.idxs.slice()).slice(0, cfg.round);
+    (pool.old || []).forEach(i => { if (!queue.includes(i)) queue.splice(Math.random()*queue.length|0, 0, i); });
+  }
+  asked = 0; right = 0; recent = []; gradList = []; nbOut = []; memList = []; retries = {};
   log = []; view = null; planned = queue.length;
   roundStart = Date.now();
   $('qScope').textContent = (customPool ? '错题专练' :
-      (cfg.bank==='daily' ? '词频前 ' + Math.min(cfg.scope,DAILY_N) : (BANKS[cfg.bank] || BANKS.daily)())
-      + (freshMode ? ' · 只出新词' : '')) + ' · ' + user;
+      (cfg.bank==='daily' ? '词频 ' + segLbl(cfg.scope) : (BANKS[cfg.bank] || BANKS.daily)())
+      + (freshMode ? ' · 只出新词' : '')) + ' · ' + ORDER_LBL[cfg.order] + ' · ' + user;
   show('quiz'); next();
 }
 let nbBtn = null;                                    // 第5个"不熟"选项按钮
@@ -587,6 +635,13 @@ function answer(k){
         if (delay < 1500) delay = 1500;
       } else msg += ' · 不熟词连对 ' + nb[w].s + '/' + NEEDNB;
     }
+    const okN = r.a - r.w;                            // 该词累计答对次数
+    if (okN >= NEEDMEM && !mem[w]){                   // 熟记本: 累计答对 NEEDMEM 次
+      mem[w] = {a: okN, t: Date.now()};
+      memList.push(w);
+      msg += ' <span style="color:var(--memink);font-weight:700">🎯 累计答对 ' + NEEDMEM + ' 次，已记入熟记本！</span>';
+      if (delay < 1500) delay = 1500;
+    }
   } else {
     r.w++;
     btns[k].classList.add('wrong'); btns[cur.correct].classList.add('right');
@@ -600,10 +655,13 @@ function answer(k){
       err[w] = {n:1, s:0, t: Date.now()};
     }
     if (nb[w]) nb[w].s = 0;                          // 不熟词连对同样归零
+    const wasMem = !!mem[w];
+    if (wasMem) delete mem[w];                       // 熟记词答错 → 移出熟记本
     msg = '✗ 错误 · 累计错 <b>' + err[w].n + '</b> 次' +
           (was && was.s ? ' · 连对 ' + was.s + ' 次已归零' : '') + '（需连对 ' + NEED + ' 次才能毕业）' +
           (nb[w] ? ' · 不熟词连对归零' : '') +
-          '<br>看仔细点，点右下角「下一词 ›」继续';
+          (wasMem ? ' · <span style="color:var(--memink);font-weight:700">已移出熟记本</span>' : '') +
+          '<br>看仔细点，点下方「下一词 ›」继续';
     waitNext = true;                                 // 答错不自动跳, 由本人手动下一词
     $('btnNext').style.visibility = 'visible';
     if ((retries[w] || 0) < 2){                    // 排队尾重现, 每词每轮最多2次, 保证本轮可结束
@@ -613,7 +671,7 @@ function answer(k){
     }
   }
   rec[w] = r;
-  K.set(uk('rec'), rec); K.set(uk('err'), err); K.set(uk('grad'), grad); K.set(uk('nb'), nb);
+  K.set(uk('rec'), rec); K.set(uk('err'), err); K.set(uk('grad'), grad); K.set(uk('nb'), nb); K.set(uk('mem'), mem);
   K.set(uk('hist'), hist); K.set(uk('stats'), stats);
   $('qScore').textContent = '本轮 ' + right + '/' + asked;
   $('fb').innerHTML = msg;
@@ -632,6 +690,10 @@ function endRound(){
     $('rNB').classList.remove('hide');
     $('rNB').textContent = '⚠️ 本轮移出不熟本 ' + nbOut.length + ' 词：' + nbOut.slice(0,8).join(', ') + (nbOut.length>8?'…':'');
   } else $('rNB').classList.add('hide');
+  if (memList.length){
+    $('rMem').classList.remove('hide');
+    $('rMem').textContent = '🎯 本轮记入熟记本 ' + memList.length + ' 词：' + memList.slice(0,8).join(', ') + (memList.length>8?'…':'');
+  } else $('rMem').classList.add('hide');
   const list = Object.keys(rec).map(w => ({w, r: rec[w]}))
     .filter(x => x.r.t >= roundStart && x.r.w > 0 && err[x.w])
     .sort((a,b) => err[b.w].n - err[a.w].n).slice(0,20);
@@ -654,13 +716,15 @@ function bookRows(){
     if (tab==='err') rows = Object.keys(err).map(w => { const i = W.findIndex(x=>x[0]===w); return i<0?null:{i,w,e:err[w]}; });
     else if (tab==='grad') rows = Object.keys(grad).map(w => { const i = W.findIndex(x=>x[0]===w); return i<0?null:{i,w,g:grad[w]}; });
     else if (tab==='nb') rows = Object.keys(nb).map(w => { const i = W.findIndex(x=>x[0]===w); return i<0?null:{i,w,b:nb[w]}; });
+    else if (tab==='mem') rows = Object.keys(mem).map(w => { const i = W.findIndex(x=>x[0]===w); return i<0?null:{i,w,m:mem[w]}; });
     else rows = Object.keys(rec).map(w => { const i = W.findIndex(x=>x[0]===w); return i<0?null:{i,w,r:rec[w]}; })
-            .filter(e => e.r.w===0 && !grad[e.w] && !nb[e.w]);
+            .filter(e => e.r.w===0 && !grad[e.w] && !nb[e.w] && !mem[e.w]);
     return rows.filter(Boolean)
       .filter(e => !kw || e.w.includes(kw) || W[e.i][3].toLowerCase().includes(kw))
       .sort((a,b) => tab==='err' ? (err[b.w].n-err[a.w].n || err[b.w].s-err[a.w].s)
            : tab==='grad' ? (grad[b.w].t-grad[a.w].t)
-           : tab==='nb' ? (nb[b.w].t-nb[a.w].t) : (b.r.a-a.r.a));
+           : tab==='nb' ? (nb[b.w].t-nb[a.w].t)
+           : tab==='mem' ? (mem[b.w].t-mem[a.w].t) : (b.r.a-a.r.a));
   };
   return pick(bookTab);
 }
@@ -668,11 +732,13 @@ function renderBook(){
   $('tabErr').className   = 'tab' + (bookTab==='err'?' on':'');
   $('tabGrad').className  = 'tab' + (bookTab==='grad'?' on':'');
   $('tabNB').className    = 'tab' + (bookTab==='nb'?' on':'');
+  $('tabMem').className   = 'tab' + (bookTab==='mem'?' on':'');
   $('tabClean').className = 'tab' + (bookTab==='clean'?' on':'');
   $('tabErr').textContent   = '错题本（'+Object.keys(err).length+'）';
   $('tabGrad').textContent  = '已毕业（'+Object.keys(grad).length+'）';
   $('tabNB').textContent    = '不熟本（'+Object.keys(nb).length+'）';
-  $('tabClean').textContent = '全对词（'+Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w]).length+'）';
+  $('tabMem').textContent   = '熟记本（'+Object.keys(mem).length+'）';
+  $('tabClean').textContent = '全对词（'+Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w] && !mem[w]).length+'）';
   const rows = bookRows();
   $('bookInfo').textContent = user + ' · ' + rows.length + ' 个词';
   $('bookList').innerHTML = rows.length ? rows.map(e => {
@@ -681,6 +747,7 @@ function renderBook(){
     if (bookTab==='err'){ badge = '<span class="c">×'+e.e.n+'</span>'; sub = '连对'+e.e.s+'/'+NEED+' · 答'+(rec[w]?rec[w].a:0)+'次 · '+fmtT(e.e.t); }
     else if (bookTab==='grad'){ badge = '<span class="c gd">🎓毕业</span>'; sub = '曾错 '+e.g.n+' 次 · '+fmtT(e.g.t)+' 毕业'; }
     else if (bookTab==='nb'){ badge = '<span class="c nbw">⚠</span>'; sub = '连对'+e.b.s+'/'+NEEDNB+' · 加入 '+fmtT(e.b.t); }
+    else if (bookTab==='mem'){ badge = '<span class="c mem">🎯熟记</span>'; sub = '累计答对 '+e.m.a+' 次 · '+fmtT(e.m.t)+' 记入'; }
     else { badge = '<span class="c ok">✓全对</span>'; sub = '答'+e.r.a+'次 · '+fmtT(e.r.t); }
     return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div><div class="wbody">'+
       '<span class="w">'+esc(w)+'</span>'+(p?'<span class="p">/'+esc(p)+'/</span>':'')+
@@ -689,20 +756,23 @@ function renderBook(){
       '</div></div>';
   }).join('') : '<div class="empty">'+(bookSearch.value?'没有匹配的记录':
     (bookTab==='err'?'错题本是空的——答错的词会自动进来':
-     bookTab==='nb'?'不熟本是空的——做题时点「⚠ 不熟」加入':'没有记录'))+'</div>';
+     bookTab==='nb'?'不熟本是空的——做题时点「⚠ 不熟」加入':
+     bookTab==='mem'?'熟记本是空的——同一个词累计答对 '+NEEDMEM+' 次会自动记入':'没有记录'))+'</div>';
   $('btnDrill').textContent = bookTab==='err' ? '只练错题本（冲刺毕业）'
     : bookTab==='grad' ? '复习毕业词'
-    : bookTab==='nb' ? '只练不熟本（过词冲刺）' : '巩固练习全对词';
+    : bookTab==='nb' ? '只练不熟本（过词冲刺）'
+    : bookTab==='mem' ? '只练熟记本（保持手感）' : '巩固练习全对词';
 }
 function exportBook(){
   const rows = bookRows();
-  const name = bookTab==='err' ? '错题本' : bookTab==='grad' ? '已毕业' : bookTab==='nb' ? '不熟本' : '全对词';
+  const name = bookTab==='err' ? '错题本' : bookTab==='grad' ? '已毕业' : bookTab==='nb' ? '不熟本' : bookTab==='mem' ? '熟记本' : '全对词';
   const lines = ['用户\t分类\t词频\t单词\t音标\t累计错误\t连续正确\t答题次数\t最近时间\t释义'];
   rows.forEach(e => { const [w,p,rk,t] = W[e.i];
-    const n = bookTab==='err' ? err[w].n : (bookTab==='grad' ? grad[w].n : 0);
+    const n = bookTab==='err' ? err[w].n : bookTab==='grad' ? grad[w].n : bookTab==='mem' ? mem[w].a : 0;
     const s = bookTab==='err' ? err[w].s+'/'+NEED : (bookTab==='nb' ? nb[w].s+'/'+NEEDNB : '');
     const a = rec[w] ? rec[w].a : 0;
-    const tt = bookTab==='err' ? err[w].t : (bookTab==='grad' ? grad[w].t : bookTab==='nb' ? nb[w].t : rec[w].t);
+    const tt = bookTab==='mem' ? mem[w].t
+      : bookTab==='err' ? err[w].t : (bookTab==='grad' ? grad[w].t : bookTab==='nb' ? nb[w].t : rec[w].t);
     lines.push([user, name, rk, w, p?'/'+p+'/':'', n, s, a, fmtT(tt), t].join('\t')); });
   const blob = new Blob(['\ufeff'+lines.join('\n')], {type:'text/plain;charset=utf-8'});
   const a = document.createElement('a');
@@ -730,7 +800,7 @@ function renderPanel(){
     b2.onclick = () => {
       if (!confirm('删除用户「'+u+'」及其全部记录？')) return;
       users = users.filter(x => x!==u);
-      ['rec','err','grad','nb','hist','stats','cfg'].forEach(k => localStorage.removeItem('hv.u.'+u+'.'+k));
+      ['rec','err','grad','nb','mem','hist','stats','cfg'].forEach(k => localStorage.removeItem('hv.u.'+u+'.'+k));
       if (u===user){
         if (users.length){ loadUser(users[0]); saveAll(); }
         else { user = null; K.set('hv.cur', null); }
@@ -765,11 +835,12 @@ $('btnNext').onclick = () => {
   nextWord();
 };
 $('tabNB').onclick  = () => { bookTab='nb';    renderBook(); };
+$('tabMem').onclick = () => { bookTab='mem';   renderBook(); };
 $('btnDrill').onclick = () => {
   const kw = $('bookSearch').value.trim().toLowerCase();
   const src = bookTab==='err' ? Object.keys(err) : bookTab==='grad' ? Object.keys(grad)
-    : bookTab==='nb' ? Object.keys(nb)
-    : Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w]);
+    : bookTab==='nb' ? Object.keys(nb) : bookTab==='mem' ? Object.keys(mem)
+    : Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w] && !mem[w]);
   const idxs = src.map(w => W.findIndex(x => x[0]===w)).filter(i => i>=0)
     .filter(i => !kw || W[i][0].includes(kw) || W[i][3].toLowerCase().includes(kw));
   if (!idxs.length) return;
@@ -778,7 +849,7 @@ $('btnDrill').onclick = () => {
 $('btnExport').onclick = exportBook;
 $('btnClear').onclick = () => {
   if (!confirm('清空当前用户「'+user+'」的全部答题记录？此操作不可恢复。')) return;
-  rec = {}; err = {}; grad = {}; nb = {}; hist = {}; stats = {asked:0, right:0, grad:0};
+  rec = {}; err = {}; grad = {}; nb = {}; mem = {}; hist = {}; stats = {asked:0, right:0, grad:0};
   saveAll(); renderBook(); renderHome();
 };
 
@@ -792,11 +863,13 @@ $('btnClear').onclick = () => {
     rec = {};
     Object.entries(oldWrong).forEach(([w,v]) => rec[w] = {a: v.n||1, w: v.n||1, t: v.t||Date.now()});
     stats = K.get('hv.stats', null) || {asked:0, right:0};
-    cfg = K.get('hv.cfg', null) || {scope:5000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily'};
+    cfg = K.get('hv.cfg', null) || {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily'};
     if (cfg.fresh === undefined) cfg.fresh = 0;
     if (!cfg.bank) cfg.bank = 'daily';
-    if (!cfg.scope || cfg.scope > DAILY_N) cfg.scope = DAILY_N;
-    err = {}; grad = {}; nb = {}; hist = {};
+    if (!cfg.order) cfg.order = 'rand';
+    if (!cfg.cursor || typeof cfg.cursor !== 'object') cfg.cursor = {};
+    if (!SEGS.some(x => x[1] === +cfg.scope)) cfg.scope = 1000;
+    err = {}; grad = {}; nb = {}; mem = {}; hist = {};
     Object.keys(rec).forEach(w => { if (rec[w].w>0) err[w] = {n:rec[w].w, s:0, t:rec[w].t}; });
     saveAll();
   }

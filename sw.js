@@ -1,6 +1,6 @@
 /* DailyWords PWA 离线缓存
    策略: HTML 网络优先(在线总能拿到最新版, 断网回退缓存); 其余资源缓存优先 */
-const CACHE = 'dailywords-v2';
+const CACHE = 'dailywords-v3';
 const ASSETS = ['./DailyWords.html', './manifest.json', './icon.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
