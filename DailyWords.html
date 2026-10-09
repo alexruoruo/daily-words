@@ -498,8 +498,8 @@ function takeOrdered(idxs, n, useCursor){            // 按顺序/A-Z 取词; us
 function startRound(customPool){
   let pool = customPool || buildPool();
   let freshMode = !customPool && !!+cfg.fresh;        // 只出新词模式(专练轮不适用)
-  let reviewMode = false;                             // 新词练完回退: 只从错题本+不熟本出题
-  if (freshMode && !pool.idxs.length){                // 新词练完: 本轮只出错题本+不熟本(限当前词库+词频范围)
+  let reviewMode = false;                             // 新词练完回退: 只从错题本+不熟本+已毕业出题
+  if (freshMode && !pool.idxs.length){                // 新词练完: 本轮只出错题本+不熟本+已毕业(限当前词库+词频范围)
     const lo = bankLo(cfg.bank), hi = bankHi(cfg.bank);
     const reviewIdxs = [];
     // 错题本(优先)
@@ -512,11 +512,16 @@ function startRound(customPool){
       const i = W.findIndex(x => x[0]===w);
       if (i>=lo && i<hi && !reviewIdxs.includes(i)) reviewIdxs.push(i);
     });
+    // 已毕业(去重, 巩固防回退)
+    Object.keys(grad).forEach(w => {
+      const i = W.findIndex(x => x[0]===w);
+      if (i>=lo && i<hi && !reviewIdxs.includes(i)) reviewIdxs.push(i);
+    });
     if (!reviewIdxs.length){
-      alert('「只出新词」：当前词频范围内的新词已全部练完，且错题本/不熟本中也没有该范围的词，无题可出。');
+      alert('「只出新词」：当前词频范围内的新词已全部练完，且错题本/不熟本/已毕业中也没有该范围的词，无题可出。');
       return;
     }
-    alert('「只出新词」：当前词频范围内的新词已全部练完。\n确定后，本轮只从【错题本 + 不熟本】中出题（仅限当前词库+词频范围）。');
+    alert('「只出新词」：当前词频范围内的新词已全部练完。\n确定后，本轮只从【错题本 + 不熟本 + 已毕业】中出题（仅限当前词库+词频范围）。');
     pool = { idxs: reviewIdxs, old: [] };
     reviewMode = true;
   }
@@ -539,7 +544,7 @@ function startRound(customPool){
   roundStart = Date.now();
   $('qScope').textContent = (customPool ? '错题专练' :
       (cfg.bank==='daily' ? '词频 ' + segLbl(cfg.scope) : (BANKS[cfg.bank] || BANKS.daily)())
-      + (reviewMode ? ' · 只练错题本+不熟本'
+      + (reviewMode ? ' · 只练错题本+不熟本+已毕业'
          : freshMode ? ' · 只出新词'
          : '')) + ' · ' + ORDER_LBL[cfg.order] + ' · ' + user;
   show('quiz'); next();
