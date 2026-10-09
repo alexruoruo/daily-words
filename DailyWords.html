@@ -189,7 +189,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="hint">当前档案：<b id="hintUser"></b>。答错的词自动进错题本，<b>答错后不自动跳题</b>——
       可细看这个词，点卡片下方「下一词 ›」再继续；<b>连续答对 5 次</b>自动毕业移出错题本，期间再答错则连对归零。
       做题时点「⚠ 不熟」把词记入<b>不熟本</b>并直接下一词，回顾上一词时也可补记；连对 3 次自动移出不熟本。
-      同一个词<b>累计答对 10 次</b>会记入<b>熟记本</b>（之后再答错则移出）。毕业的词记入「毕业本」，答对过且从没错的词记入「全对词」。音标为英式（DJ 音标）。
+      同一个词<b>连续答对 10 次</b>会记入<b>熟记本</b>（中途答错则连续次数清零，需重新累加；之后再答错则移出熟记本）。毕业的词记入「毕业本」，答对过且从没错的词记入「全对词」。音标为英式（DJ 音标）。
       <b>词频范围</b>按名次分 5 段：1-1000 / 1001-2000 / 2001-3000 / 3001-4000 / 4001-5000，只对日常词库生效。
       <b>出题顺序</b>可选「按顺序(词频)」「乱序」「按字母 A-Z」；按顺序与 A-Z 会记住上次练到的位置，下一轮接着往下背，练到末尾回到开头。
       「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。
@@ -691,7 +691,8 @@ function answer(k){
     chosen: cfg.dir==='en2zh' ? W[cur.opts[k]][3] : W[cur.opts[k]][0],
     right:  cfg.dir==='en2zh' ? W[cur.opts[cur.correct]][3] : W[cur.opts[cur.correct]][0]});
   const btns = $('opts').children;
-  const r = rec[w] || {a:0, w:0, t:0};
+  const r = rec[w] || (rec[w] = {a:0, w:0, s:0, t:0});  // s = 连续答对次数
+  if (r.s === undefined) r.s = Math.max(0, r.a - r.w);    // 旧数据回填: 用累计答对作为连续次数近似
   r.a++; r.t = Date.now();
   asked++; stats.asked++;
   const dk = dayKey();
@@ -728,16 +729,17 @@ function answer(k){
         if (delay < 1500) delay = 1500;
       } else msg += ' · 不熟词连对 ' + nb[w].s + '/' + NEEDNB;
     }
-    const okN = r.a - r.w;                            // 该词累计答对次数
-    if (okN >= NEEDMEM && !mem[w]){                   // 熟记本: 累计答对 NEEDMEM 次
-      mem[w] = {a: okN, t: Date.now()};
+    r.s = (r.s||0) + 1;                               // 连续答对 +1
+    if (r.s >= NEEDMEM && !mem[w]){                   // 熟记本: 连续答对 NEEDMEM 次
+      mem[w] = {s: r.s, t: Date.now()};
       memList.push(w);
       hist[dk].m++;
-      msg += ' <span style="color:var(--memink);font-weight:700">🎯 累计答对 ' + NEEDMEM + ' 次，已记入熟记本！</span>';
+      msg += ' <span style="color:var(--memink);font-weight:700">🎯 连续答对 ' + r.s + ' 次，已记入熟记本！</span>';
       if (delay < 1500) delay = 1500;
     }
   } else {
     r.w++;
+    r.s = 0;                                            // 中途答错, 连续答对次数清零
     hist[dk].e++;
     btns[k].classList.add('wrong'); btns[cur.correct].classList.add('right');
     const was = err[w];
@@ -842,7 +844,7 @@ function renderBook(){
     if (bookTab==='err'){ badge = '<span class="c">×'+e.e.n+'</span>'; sub = '连对'+e.e.s+'/'+NEED+' · 答'+(rec[w]?rec[w].a:0)+'次 · '+fmtT(e.e.t); }
     else if (bookTab==='grad'){ badge = '<span class="c gd">🎓毕业</span>'; sub = '曾错 '+e.g.n+' 次 · '+fmtT(e.g.t)+' 毕业'; }
     else if (bookTab==='nb'){ badge = '<span class="c nbw">⚠</span>'; sub = '连对'+e.b.s+'/'+NEEDNB+' · 加入 '+fmtT(e.b.t); }
-    else if (bookTab==='mem'){ badge = '<span class="c mem">🎯熟记</span>'; sub = '累计答对 '+e.m.a+' 次 · '+fmtT(e.m.t)+' 记入'; }
+    else if (bookTab==='mem'){ badge = '<span class="c mem">🎯熟记</span>'; sub = '连续答对 '+e.m.s+' 次 · '+fmtT(e.m.t)+' 记入'; }
     else { badge = '<span class="c ok">✓全对</span>'; sub = '答'+e.r.a+'次 · '+fmtT(e.r.t); }
     return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div><div class="wbody">'+
       '<span class="w">'+esc(w)+'</span>'+(p?'<span class="p">/'+esc(p)+'/</span>':'')+
@@ -852,7 +854,7 @@ function renderBook(){
   }).join('') : '<div class="empty">'+(bookSearch.value?'没有匹配的记录':
     (bookTab==='err'?'错题本是空的——答错的词会自动进来':
      bookTab==='nb'?'不熟本是空的——做题时点「⚠ 不熟」加入':
-     bookTab==='mem'?'熟记本是空的——同一个词累计答对 '+NEEDMEM+' 次会自动记入':'没有记录'))+'</div>';
+     bookTab==='mem'?'熟记本是空的——同一个词连续答对 '+NEEDMEM+' 次会自动记入（中途答错清零）':'没有记录'))+'</div>';
   $('btnDrill').textContent = bookTab==='err' ? '只练错题本（冲刺毕业）'
     : bookTab==='grad' ? '复习毕业词'
     : bookTab==='nb' ? '只练不熟本（过词冲刺）'
@@ -863,8 +865,11 @@ function exportBook(){
   const name = bookTab==='err' ? '错题本' : bookTab==='grad' ? '毕业本' : bookTab==='nb' ? '不熟本' : bookTab==='mem' ? '熟记本' : '全对词';
   const lines = ['用户\t分类\t词频\t单词\t音标\t累计错误\t连续正确\t答题次数\t最近时间\t释义'];
   rows.forEach(e => { const [w,p,rk,t] = W[e.i];
-    const n = bookTab==='err' ? err[w].n : bookTab==='grad' ? grad[w].n : bookTab==='mem' ? mem[w].a : 0;
-    const s = bookTab==='err' ? err[w].s+'/'+NEED : (bookTab==='nb' ? nb[w].s+'/'+NEEDNB : '');
+    const n = bookTab==='err' ? err[w].n : bookTab==='grad' ? grad[w].n : bookTab==='mem' ? (mem[w].s ?? mem[w].a ?? 0) : 0;
+    const s = bookTab==='err' ? err[w].s+'/'+NEED
+            : bookTab==='nb' ? nb[w].s+'/'+NEEDNB
+            : bookTab==='mem' ? (mem[w].s ?? mem[w].a ?? 0)
+            : '';
     const a = rec[w] ? rec[w].a : 0;
     const tt = bookTab==='mem' ? mem[w].t
       : bookTab==='err' ? err[w].t : (bookTab==='grad' ? grad[w].t : bookTab==='nb' ? nb[w].t : rec[w].t);
