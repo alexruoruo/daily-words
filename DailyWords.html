@@ -108,6 +108,7 @@ input:focus{outline:none;border-color:var(--brand)}
 .opt.nb5.on{background:var(--nbink);border-color:var(--nbink);color:#fff}
 .navrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .navbtn{font-size:13px;color:var(--sub);background:var(--chip);border-radius:999px;padding:6px 13px;cursor:pointer}
+.prevWord{color:var(--brand);font-weight:700;font-size:12px;margin-left:1px}
 #navPos{font-size:12px;color:var(--sub)}
 .navnext{display:block;width:100%;margin-top:10px;padding:13px;border:1.5px solid var(--line);border-radius:12px;
   background:var(--card);color:var(--brand);font-weight:700;font-size:15px;cursor:pointer}
@@ -442,12 +443,27 @@ function takeOrdered(idxs, n, useCursor){            // 按顺序/A-Z 取词; us
 function startRound(customPool){
   let pool = customPool || buildPool();
   let freshMode = !customPool && !!+cfg.fresh;        // 只出新词模式(专练轮不适用)
-  if (freshMode && !pool.idxs.length){                // 新词练完: 自动回退为可重复出题
-    alert('「只出新词」：当前词频范围内的新词已全部练完，本轮改为可重复出题');
-    const f = cfg.fresh; cfg.fresh = 0;
-    pool = buildPool();
-    cfg.fresh = f;
-    freshMode = false;
+  let reviewMode = false;                             // 新词练完回退: 只从错题本+不熟本出题
+  if (freshMode && !pool.idxs.length){                // 新词练完: 本轮只出错题本+不熟本(限当前词库+词频范围)
+    const lo = bankLo(cfg.bank), hi = bankHi(cfg.bank);
+    const reviewIdxs = [];
+    // 错题本(优先)
+    Object.keys(err).forEach(w => {
+      const i = W.findIndex(x => x[0]===w);
+      if (i>=lo && i<hi) reviewIdxs.push(i);
+    });
+    // 不熟本(去重)
+    Object.keys(nb).forEach(w => {
+      const i = W.findIndex(x => x[0]===w);
+      if (i>=lo && i<hi && !reviewIdxs.includes(i)) reviewIdxs.push(i);
+    });
+    if (!reviewIdxs.length){
+      alert('「只出新词」：当前词频范围内的新词已全部练完，且错题本/不熟本中也没有该范围的词，无题可出。');
+      return;
+    }
+    alert('「只出新词」：当前词频范围内的新词已全部练完。\n确定后，本轮只从【错题本 + 不熟本】中出题（仅限当前词库+词频范围）。');
+    pool = { idxs: reviewIdxs, old: [] };
+    reviewMode = true;
   }
   const ordered = cfg.order !== 'rand';
   const useCursor = ordered && !freshMode && !customPool;  // 专练轮/只出新词 不动续背游标
@@ -468,7 +484,9 @@ function startRound(customPool){
   roundStart = Date.now();
   $('qScope').textContent = (customPool ? '错题专练' :
       (cfg.bank==='daily' ? '词频 ' + segLbl(cfg.scope) : (BANKS[cfg.bank] || BANKS.daily)())
-      + (freshMode ? ' · 只出新词' : '')) + ' · ' + ORDER_LBL[cfg.order] + ' · ' + user;
+      + (reviewMode ? ' · 只练错题本+不熟本'
+         : freshMode ? ' · 只出新词'
+         : '')) + ' · ' + ORDER_LBL[cfg.order] + ' · ' + user;
   show('quiz'); next();
 }
 let nbBtn = null;                                    // 第5个"不熟"选项按钮
@@ -494,9 +512,17 @@ function nbDel(w){ delete nb[w]; K.set(uk('nb'), nb); renderBook(); renderHome()
 function updBar(){
   $('bar').style.width = Math.min(100, Math.round(log.length/planned*100)) + '%';
 }
+function truncT(t, max){
+  if (!t) return '';
+  return t.length > max ? t.slice(0, max) + '…' : t;
+}
 function updateNav(){
   const live = view === null;
   $('navPos').textContent = live ? '第 ' + (log.length+1) + ' 题' : '回顾 ' + (view+1) + '/' + log.length;
+  const last = log.length ? W[log[log.length-1].i] : null;
+  const lastW = last ? last[0] : '';
+  const lastT = last ? truncT(last[3], 20) : '';
+  $('btnPrev').innerHTML = '‹ 上一词' + (lastW ? ' <span class="prevWord">(' + esc(lastW) + (lastT ? ' · ' + esc(lastT) : '') + ')</span>' : '');
   $('btnNext').style.visibility = (live && !waitNext) ? 'hidden' : 'visible';
   $('btnPrev').style.opacity = live && !log.length ? '.35' : '1';
 }
