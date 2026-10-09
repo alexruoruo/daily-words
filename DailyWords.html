@@ -161,7 +161,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <div><div class="n" id="stAcc">–</div><div class="l">正确率</div></div>
     <div><div class="n bad" id="stErr">0</div><div class="l">错题本</div></div>
     <div><div class="n nbc" id="stNB">0</div><div class="l">不熟本</div></div>
-    <div><div class="n gold" id="stGrad">0</div><div class="l">已毕业</div></div>
+    <div><div class="n gold" id="stGrad">0</div><div class="l">毕业本</div></div>
     <div><div class="n memc" id="stMem">0</div><div class="l">熟记本</div></div>
   </div>
   <div class="card" id="todayCard" style="display:none">
@@ -189,7 +189,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="hint">当前档案：<b id="hintUser"></b>。答错的词自动进错题本，<b>答错后不自动跳题</b>——
       可细看这个词，点卡片下方「下一词 ›」再继续；<b>连续答对 5 次</b>自动毕业移出错题本，期间再答错则连对归零。
       做题时点「⚠ 不熟」把词记入<b>不熟本</b>并直接下一词，回顾上一词时也可补记；连对 3 次自动移出不熟本。
-      同一个词<b>累计答对 10 次</b>会记入<b>熟记本</b>（之后再答错则移出）。毕业的词记入「已毕业」，答对过且从没错的词记入「全对词」。音标为英式（DJ 音标）。
+      同一个词<b>累计答对 10 次</b>会记入<b>熟记本</b>（之后再答错则移出）。毕业的词记入「毕业本」，答对过且从没错的词记入「全对词」。音标为英式（DJ 音标）。
       <b>词频范围</b>按名次分 5 段：1-1000 / 1001-2000 / 2001-3000 / 3001-4000 / 4001-5000，只对日常词库生效。
       <b>出题顺序</b>可选「按顺序(词频)」「乱序」「按字母 A-Z」；按顺序与 A-Z 会记住上次练到的位置，下一轮接着往下背，练到末尾回到开头。
       「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。
@@ -240,7 +240,7 @@ input:focus{outline:none;border-color:var(--brand)}
   </div>
   <div class="tabs">
     <div class="tab on" id="tabErr">错题本</div>
-    <div class="tab" id="tabGrad">已毕业</div>
+    <div class="tab" id="tabGrad">毕业本</div>
     <div class="tab" id="tabNB">不熟本</div>
     <div class="tab" id="tabMem">熟记本</div>
     <div class="tab" id="tabClean">全对词</div>
@@ -498,8 +498,8 @@ function takeOrdered(idxs, n, useCursor){            // 按顺序/A-Z 取词; us
 function startRound(customPool){
   let pool = customPool || buildPool();
   let freshMode = !customPool && !!+cfg.fresh;        // 只出新词模式(专练轮不适用)
-  let reviewMode = false;                             // 新词练完回退: 只从错题本+不熟本+已毕业出题
-  if (freshMode && !pool.idxs.length){                // 新词练完: 本轮只出错题本+不熟本+已毕业(限当前词库+词频范围)
+  let reviewMode = false;                             // 新词练完回退: 只从错题本+不熟本+毕业本出题
+  if (freshMode && !pool.idxs.length){                // 新词练完: 本轮只出错题本+不熟本+毕业本(限当前词库+词频范围)
     const lo = bankLo(cfg.bank), hi = bankHi(cfg.bank);
     const reviewIdxs = [];
     // 错题本(优先)
@@ -512,16 +512,16 @@ function startRound(customPool){
       const i = W.findIndex(x => x[0]===w);
       if (i>=lo && i<hi && !reviewIdxs.includes(i)) reviewIdxs.push(i);
     });
-    // 已毕业(去重, 巩固防回退)
+    // 毕业本(去重, 巩固防回退)
     Object.keys(grad).forEach(w => {
       const i = W.findIndex(x => x[0]===w);
       if (i>=lo && i<hi && !reviewIdxs.includes(i)) reviewIdxs.push(i);
     });
     if (!reviewIdxs.length){
-      alert('「只出新词」：当前词频范围内的新词已全部练完，且错题本/不熟本/已毕业中也没有该范围的词，无题可出。');
+      alert('「只出新词」：当前词频范围内的新词已全部练完，且错题本/不熟本/毕业本中也没有该范围的词，无题可出。');
       return;
     }
-    alert('「只出新词」：当前词频范围内的新词已全部练完。\n确定后，本轮只从【错题本 + 不熟本 + 已毕业】中出题（仅限当前词库+词频范围）。');
+    alert('「只出新词」：当前词频范围内的新词已全部练完。\n确定后，本轮只从【错题本 + 不熟本 + 毕业本】中出题（仅限当前词库+词频范围）。');
     pool = { idxs: reviewIdxs, old: [] };
     reviewMode = true;
   }
@@ -544,7 +544,7 @@ function startRound(customPool){
   roundStart = Date.now();
   $('qScope').textContent = (customPool ? '错题专练' :
       (cfg.bank==='daily' ? '词频 ' + segLbl(cfg.scope) : (BANKS[cfg.bank] || BANKS.daily)())
-      + (reviewMode ? ' · 只练错题本+不熟本+已毕业'
+      + (reviewMode ? ' · 只练错题本+不熟本+毕业本'
          : freshMode ? ' · 只出新词'
          : '')) + ' · ' + ORDER_LBL[cfg.order] + ' · ' + user;
   show('quiz'); next();
@@ -830,7 +830,7 @@ function renderBook(){
   $('tabMem').className   = 'tab' + (bookTab==='mem'?' on':'');
   $('tabClean').className = 'tab' + (bookTab==='clean'?' on':'');
   $('tabErr').textContent   = '错题本（'+Object.keys(err).length+'）';
-  $('tabGrad').textContent  = '已毕业（'+Object.keys(grad).length+'）';
+  $('tabGrad').textContent  = '毕业本（'+Object.keys(grad).length+'）';
   $('tabNB').textContent    = '不熟本（'+Object.keys(nb).length+'）';
   $('tabMem').textContent   = '熟记本（'+Object.keys(mem).length+'）';
   $('tabClean').textContent = '全对词（'+Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w] && !mem[w]).length+'）';
@@ -860,7 +860,7 @@ function renderBook(){
 }
 function exportBook(){
   const rows = bookRows();
-  const name = bookTab==='err' ? '错题本' : bookTab==='grad' ? '已毕业' : bookTab==='nb' ? '不熟本' : bookTab==='mem' ? '熟记本' : '全对词';
+  const name = bookTab==='err' ? '错题本' : bookTab==='grad' ? '毕业本' : bookTab==='nb' ? '不熟本' : bookTab==='mem' ? '熟记本' : '全对词';
   const lines = ['用户\t分类\t词频\t单词\t音标\t累计错误\t连续正确\t答题次数\t最近时间\t释义'];
   rows.forEach(e => { const [w,p,rk,t] = W[e.i];
     const n = bookTab==='err' ? err[w].n : bookTab==='grad' ? grad[w].n : bookTab==='mem' ? mem[w].a : 0;
