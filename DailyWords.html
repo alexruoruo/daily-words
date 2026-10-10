@@ -117,8 +117,8 @@ input:focus{outline:none;border-color:var(--brand)}
 .rm{margin-left:6px;color:#98a2ae;cursor:pointer;font-size:12px;padding:2px 7px;border-radius:99px;background:var(--chip);white-space:nowrap}
 .opt.nb5{border-color:var(--nbbg);background:var(--nbbg);color:var(--nbink);font-weight:700;text-align:center}
 .opt.nb5.on{background:var(--nbink);border-color:var(--nbink);color:#fff}
-.opt.sk{border-color:var(--line);background:var(--chip);color:var(--ink);font-weight:700;text-align:center}
-.opt.sk.on{background:var(--ink);border-color:var(--ink);color:var(--card)}
+.opt.sk{border-color:var(--badbg);background:var(--badbg);color:var(--bad);font-weight:700;text-align:center}
+.opt.sk.on{background:var(--bad);border-color:var(--bad);color:#fff}
 .navrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .navbtn{font-size:13px;color:var(--sub);background:var(--chip);border-radius:999px;padding:6px 13px;cursor:pointer}
 .prevWord{color:var(--brand);font-weight:700;font-size:12px;margin-left:1px}
@@ -167,7 +167,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <div><div class="n nbc" id="stNB">0</div><div class="l">不熟本</div></div>
     <div><div class="n gold" id="stGrad">0</div><div class="l">毕业本</div></div>
     <div><div class="n memc" id="stMem">0</div><div class="l">熟记本</div></div>
-    <div><div class="n" id="stSkip" style="color:var(--sub)">0</div><div class="l">不练本</div></div>
+    <div><div class="n" id="stSkip" style="color:var(--bad)">0</div><div class="l">不练本</div></div>
   </div>
   <div class="card" id="todayCard" style="display:none">
     <div class="today"><span style="color:var(--sub);font-size:13px">近 7 天答题量</span><span id="todayTxt" style="font-size:13px;color:var(--sub)"></span></div>
@@ -916,7 +916,7 @@ function renderBook(){
     if (bookTab==='err'){ badge = '<span class="c">×'+e.e.n+'</span>'; sub = '连对'+e.e.s+'/'+NEED+' · 答'+(rec[w]?rec[w].a:0)+'次 · '+fmtT(e.e.t); }
     else if (bookTab==='grad'){ badge = '<span class="c gd">🎓毕业</span>'; sub = '曾错 '+e.g.n+' 次 · '+fmtT(e.g.t)+' 毕业'; }
     else if (bookTab==='nb'){ badge = '<span class="c nbw">⚠</span>'; sub = '连对'+e.b.s+'/'+NEEDNB+' · 加入 '+fmtT(e.b.t); }
-    else if (bookTab==='skip'){ badge = '<span class="c" style="background:var(--chip);color:var(--ink)">🚫</span>'; sub = '加入 '+fmtT(e.k.t); }
+    else if (bookTab==='skip'){ badge = '<span class="c" style="background:var(--badbg);color:var(--bad)">🚫</span>'; sub = '加入 '+fmtT(e.k.t); }
     else if (bookTab==='mem'){ badge = '<span class="c mem">🎯熟记</span>'; sub = '连续答对 '+e.m.s+' 次 · '+fmtT(e.m.t)+' 记入'; }
     else { badge = '<span class="c ok">✓全对</span>'; sub = '答'+e.r.a+'次 · '+fmtT(e.r.t); }
     return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div><div class="wbody">'+
