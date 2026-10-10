@@ -430,7 +430,7 @@ function renderHome(){
     v => cfg.order===v, v => cfg.order=v);
   mkChips('freshChips', [{v:0,t:'可重复出现'},{v:1,t:'只出新词'}],
     v => (+cfg.fresh||0)===v, v => cfg.fresh=v);
-  mkChips('roundChips', [20,50,100].map(r => ({v:r, t:r+' 题/轮'})),
+  mkChips('roundChips', [10,20,50,100].map(r => ({v:r, t:r+' 题/轮'})),
     v => cfg.round===v, v => cfg.round=v);
   mkChips('dirChips', [{v:'en2zh',t:'看单词 → 选释义'},{v:'zh2en',t:'看释义 → 选单词'}],
     v => cfg.dir===v, v => cfg.dir=v);
