@@ -184,6 +184,8 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="chips" id="dirChips"></div>
     <div class="lbl">选项中显示音标</div>
     <div class="chips" id="phonChips"></div>
+    <div class="lbl">每题加载时自动发音</div>
+    <div class="chips" id="autoChips"></div>
     <button class="btn" id="btnStart">开始练习</button>
     <button class="btn ghost" id="btnBook">学习记录</button>
     <div class="hint">当前档案：<b id="hintUser"></b>。答错的词自动进错题本，<b>答错后不自动跳题</b>——
@@ -192,6 +194,7 @@ input:focus{outline:none;border-color:var(--brand)}
       同一个词<b>连续答对 10 次</b>会记入<b>熟记本</b>（中途答错则连续次数清零，需重新累加；之后再答错则移出熟记本）。毕业的词记入「毕业本」，答对过且从没错的词记入「全对词」。音标为英式（DJ 音标）。
       <b>词频范围</b>按名次分 5 段：1-1000 / 1001-2000 / 2001-3000 / 3001-4000 / 4001-5000，只对日常词库生效。
       <b>出题顺序</b>可选「按顺序(词频)」「乱序」「按字母 A-Z」；按顺序与 A-Z 会记住上次练到的位置，下一轮接着往下背，练到末尾回到开头。
+      <b>每题加载时自动发音</b>开启后，每加载一个新题目都会自动用浏览器 TTS 朗读一次（每次 speak() 内部 cancel 上一段，无网络请求，资源消耗极低）。
       「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。
       <b>词库</b>可在「日常高频」「计算机专业」(IT 术语)、「外贸专用」(函电/物流/结算/报关)、「四六级」(大纲词)、「托福雅思」(留学考试词)间切换，后四个词库均只收日常词库没有的词；错题本/不熟本/熟记本等记录各词库共用。</div>
   </div>
@@ -328,8 +331,9 @@ function loadUser(name){
   mem   = K.get(uk('mem'), {});
   hist  = K.get(uk('hist'), {});
   stats = K.get(uk('stats'), {asked:0, right:0, grad:0});
-  cfg   = K.get(uk('cfg'), {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily'});
+  cfg   = K.get(uk('cfg'), {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily', autoplay:0});
   if (cfg.fresh === undefined) cfg.fresh = 0;         // 旧档案补默认: 允许重复
+  if (cfg.autoplay === undefined) cfg.autoplay = 0;   // 旧档案补默认: 不自动发音
   if (!cfg.bank) cfg.bank = 'daily';
   if (!cfg.order) cfg.order = 'rand';                 // 旧档案补默认: 乱序出题
   if (!cfg.cursor || typeof cfg.cursor !== 'object') cfg.cursor = {};  // 顺序/A-Z 续背位置
@@ -423,6 +427,8 @@ function renderHome(){
     v => cfg.dir===v, v => cfg.dir=v);
   mkChips('phonChips', [{v:1,t:'显示'},{v:0,t:'隐藏'}],
     v => +cfg.phon===v, v => cfg.phon=v);
+  mkChips('autoChips', [{v:1,t:'开启'},{v:0,t:'关闭'}],
+    v => +cfg.autoplay===v, v => cfg.autoplay=v);
   // 近7天
   const days = [];
   for (let i=6;i>=0;i--){ const t = Date.now()-i*86400000; days.push({k: dayKey(t), lb: fmtT(t), h: hist[dayKey(t)]||{a:0,r:0,e:0,g:0,n:0,m:0}}); }
@@ -621,6 +627,7 @@ function renderQ(){                                  // 渲染当前待答的题
   box.appendChild(b5);
   setNB(w);
   updateNav();
+  if (+cfg.autoplay) speak(w);                       // 自动发音(若开启)
 }
 function prevWord(){                                 // 回顾上一词(只读)
   if (!log.length) return;
@@ -963,8 +970,9 @@ $('btnClear').onclick = () => {
     rec = {};
     Object.entries(oldWrong).forEach(([w,v]) => rec[w] = {a: v.n||1, w: v.n||1, t: v.t||Date.now()});
     stats = K.get('hv.stats', null) || {asked:0, right:0};
-    cfg = K.get('hv.cfg', null) || {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily'};
+    cfg = K.get('hv.cfg', null) || {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily', autoplay:0};
     if (cfg.fresh === undefined) cfg.fresh = 0;
+    if (cfg.autoplay === undefined) cfg.autoplay = 0;
     if (!cfg.bank) cfg.bank = 'daily';
     if (!cfg.order) cfg.order = 'rand';
     if (!cfg.cursor || typeof cfg.cursor !== 'object') cfg.cursor = {};
