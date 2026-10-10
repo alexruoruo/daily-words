@@ -84,6 +84,8 @@ input:focus{outline:none;border-color:var(--brand)}
 .spkphon:active{transform:scale(.98)}
 .qtrans{font-size:20px;font-weight:700;line-height:1.5}
 .opts{display:grid;gap:10px}
+.optrow{display:flex;gap:10px}
+.optrow .opt{flex:1}
 .opt{padding:14px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);
   font-size:15px;line-height:1.45;cursor:pointer;text-align:left;min-height:48px;color:var(--ink)}
 .opt:active{transform:scale(.98)}
@@ -663,11 +665,14 @@ function renderQ(){                                  // 渲染当前待答的题
   b5.className = 'opt nb5';
   b5.onclick = nbSkip;
   nbBtn = b5;
-  box.appendChild(b5);
   const b6 = document.createElement('button');       // 第6个选项: 不练, 我已牢记
   b6.onclick = skSkip;
   skBtn = b6;
-  box.appendChild(b6);
+  const special = document.createElement('div');
+  special.className = 'optrow';
+  special.appendChild(b5);
+  special.appendChild(b6);
+  box.appendChild(special);
   setNB(w);
   setSK(w);
   updateNav();
@@ -701,7 +706,6 @@ function renderReview(){
   bb.textContent = nb[w] ? '⚠ 已在不熟本 · 点此移出' : '⚠ 不熟 · 记入不熟本';
   bb.onclick = () => { if (nb[w]) delete nb[w]; else nb[w] = {s:0, t:Date.now()};
     K.set(uk('nb'), nb); setNB(w); renderReview(); };
-  $('opts').appendChild(bb);
   const ss = document.createElement('button');        // 回顾页: 加入/移出不练本
   ss.className = 'opt sk' + (skip[w] ? ' on' : '');
   ss.textContent = skip[w] ? '🚫 已在不练本 · 点此移出' : '🚫 不练 · 我已牢记';
@@ -710,7 +714,11 @@ function renderReview(){
     else { skip[w] = {t:Date.now()}; delete err[w]; delete nb[w]; K.set(uk('err'), err); K.set(uk('nb'), nb); }
     K.set(uk('skip'), skip); setSK(w); renderReview(); renderHome();
   };
-  $('opts').appendChild(ss);
+  const special = document.createElement('div');
+  special.className = 'optrow';
+  special.appendChild(bb);
+  special.appendChild(ss);
+  $('opts').appendChild(special);
   updateNav();
 }
 function next(){
