@@ -32,20 +32,20 @@ header h1{font-size:18px;margin:0}
 header .cnt{font-size:12px;color:var(--sub)}
 .uchip{margin-left:auto;display:flex;align-items:center;gap:6px;background:var(--chip);border-radius:999px;
   padding:6px 12px;font-size:13px;cursor:pointer;color:var(--ink);flex:none}
-.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; overflow:hidden}
 
 /* ========== 答题日历 ========== */
-.calTop{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:14px}
-.calNav{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--chip);cursor:pointer;user-select:none;color:var(--ink);transition:background .15s}
+.calTop{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:14px;flex-wrap:wrap}
+.calNav{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--chip);cursor:pointer;user-select:none;color:var(--ink);transition:background .15s;flex:none;font-size:16px;line-height:1}
 .calNav:hover{background:var(--line)}
 .calNav:active{transform:scale(.92)}
-.calTitle{flex:1;text-align:center;font-weight:700;font-size:15px;font-feature-settings:"tnum"}
-.calLegend{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);margin-left:auto}
-.calLegend .sw{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin:0 1px}
-.calWk{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;font-size:11px;color:var(--sub);text-align:center}
+.calTitle{flex:1;text-align:center;font-weight:700;font-size:15px;font-feature-settings:"tnum";min-width:0}
+.calLegend{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10px;color:var(--sub);margin:0 0 6px;flex-wrap:wrap}
+.calLegend .sw{width:9px;height:9px;border-radius:2px;display:inline-block;vertical-align:middle;margin:0 1px}
+.calWk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:4px;font-size:11px;color:var(--sub);text-align:center}
 .calWk div{line-height:1}
-.calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.calCell{aspect-ratio:1/1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;cursor:pointer;color:var(--sub);background:var(--chip);position:relative;transition:transform .1s,box-shadow .15s;user-select:none}
+.calGrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.calCell{aspect-ratio:1/1;min-width:0;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;cursor:pointer;color:var(--sub);background:var(--chip);position:relative;transition:transform .1s,box-shadow .15s;user-select:none;overflow:hidden}
 .calCell:hover{transform:scale(1.06)}
 .calCell.empty{background:transparent;cursor:default;pointer-events:none}
 .calCell.empty:hover{transform:none}
@@ -223,13 +223,13 @@ input:focus{outline:none;border-color:var(--brand)}
       <span class="calTitle" id="calTitle">— 年 — 月</span>
       <span class="calNav" id="calNextM" title="下一月">›</span>
       <span class="calNav" id="calNextY" title="下一年">»</span>
-      <span class="calLegend">
-        <span class="sw" style="background:var(--chip)"></span>少
-        <span class="sw" data-lv="1" style="background:#dde9fb"></span>
-        <span class="sw" data-lv="2" style="background:#9bbde8"></span>
-        <span class="sw" data-lv="3" style="background:#5b8fd1"></span>
-        <span class="sw" data-lv="4" style="background:#2f5fa8"></span>多
-      </span>
+    </div>
+    <div class="calLegend">
+      <span class="sw" style="background:var(--chip)"></span>少
+      <span class="sw" data-lv="1" style="background:#dde9fb"></span>
+      <span class="sw" data-lv="2" style="background:#9bbde8"></span>
+      <span class="sw" data-lv="3" style="background:#5b8fd1"></span>
+      <span class="sw" data-lv="4" style="background:#2f5fa8"></span>多
     </div>
     <div class="calWk">
       <div>日</div><div>一</div><div>二</div><div>三</div>
