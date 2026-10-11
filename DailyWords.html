@@ -212,11 +212,11 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="stat book" id="bkClean" data-tab="clean"><div class="n" id="stClean" style="color:var(--ok)">0</div><div class="l">全对词 ›</div></div>
   </div>
   <div class="card" id="todayCard" style="display:none">
-    <div class="today"><span style="color:var(--sub);font-size:13px">近 7 天答题量</span><span id="todayTxt" style="font-size:13px;color:var(--sub)"></span></div>
+    <div class="today"><span style="color:var(--sub);font-size:13px">近 7 天答题量</span><span id="todayTxt" style="font-size:13px;color:var(--sub)"></span><span id="btnCal" style="margin-left:auto;font-size:12px;background:var(--chip);color:var(--ink);padding:5px 12px;border-radius:999px;cursor:pointer;user-select:none">查历史统计 ›</span></div>
     <div class="week" id="weekBars"></div>
     <div id="dayDetail" class="hide" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:13px;text-align:left"></div>
   </div>
-  <div class="card" id="calCard">
+  <div class="card" id="calCard" style="display:none">
     <div class="calTop">
       <span class="calNav" id="calPrevY" title="上一年">«</span>
       <span class="calNav" id="calPrevM" title="上一月">‹</span>
@@ -521,7 +521,8 @@ function renderHome(){
   for (let i=6;i>=0;i--){ const t = Date.now()-i*86400000; days.push({k: dayKey(t), lb: fmtT(t), h: hist[dayKey(t)]||{a:0,r:0,e:0,g:0,n:0,m:0}}); }
   days.forEach(d => { const h = d.h; h.a = h.a||0; h.r = h.r||0; h.e = h.e||0; h.g = h.g||0; h.n = h.n||0; h.m = h.m||0; });
   const any = days.some(d => d.h.a>0);
-  $('todayCard').style.display = any ? '' : 'none';
+  const anyHist = Object.keys(hist).some(k => (hist[k].a||0) > 0);   // 历史中任意一天有数据
+  $('todayCard').style.display = (any || anyHist) ? '' : 'none';
   if (any){
     const mx = Math.max(...days.map(d => d.h.a), 1);
     const tb = hist[dayKey()] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
@@ -563,6 +564,12 @@ $('weekBars').addEventListener('click', e => {
   if (!col || !col.dataset.d) return;
   showDayDetail(col.dataset.d);
 });
+$('btnCal').onclick = () => {
+  const open = $('calCard').style.display !== 'none';
+  $('calCard').style.display = open ? 'none' : '';
+  $('btnCal').textContent = open ? '查历史统计 ›' : '收起历史统计 ‹';
+  $('btnCal').style.background = open ? 'var(--chip)' : 'var(--line)';
+};
 
 /* ---------------- 答题日历 ---------------- */
 let calY, calM;                                       // 当前显示的年/月
