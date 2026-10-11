@@ -128,6 +128,17 @@ input:focus{outline:none;border-color:var(--brand)}
 .navnext:active{transform:scale(.98)}
 .empty{text-align:center;color:var(--sub);padding:26px 0;font-size:14px}
 .hint{font-size:12px;color:var(--sub);line-height:1.7;margin-top:8px}
+.hint ol{margin:6px 0 0;padding-left:20px}
+.hint ol li{margin-bottom:5px;line-height:1.65}
+.stats .stat{cursor:default}
+.stats .stat.book{cursor:pointer;transition:transform .15s,background .15s;border-radius:10px;padding:6px 2px;margin:-2px -2px}
+.stats .stat.book:hover{transform:translateY(-2px);background:var(--chip)}
+.stats .stat.book:active{transform:translateY(0);background:var(--line)}
+.bookSort{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:12px;color:var(--sub)}
+.bookSort .seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--card)}
+.bookSort .seg span{padding:6px 11px;cursor:pointer;font-size:12px;color:var(--ink)}
+.bookSort .seg span.on{background:var(--chipon);color:#fff;font-weight:700}
+.bookSort .seg span:not(.on):hover{background:var(--chip)}
 .hide{display:none!important}
 #mask{position:fixed;inset:0;background:rgba(10,16,30,.45);z-index:9;display:flex;align-items:flex-end;justify-content:center}
 #userPanel{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px 26px}
@@ -161,13 +172,14 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="uchip" id="btnUser">👤 <span id="uName"></span> ▾</div>
   </header>
   <div class="card stats">
-    <div><div class="n" id="stAsked">0</div><div class="l">累计答题</div></div>
-    <div><div class="n" id="stAcc">–</div><div class="l">正确率</div></div>
-    <div><div class="n bad" id="stErr">0</div><div class="l">错题本</div></div>
-    <div><div class="n nbc" id="stNB">0</div><div class="l">不熟本</div></div>
-    <div><div class="n gold" id="stGrad">0</div><div class="l">毕业本</div></div>
-    <div><div class="n memc" id="stMem">0</div><div class="l">熟记本</div></div>
-    <div><div class="n" id="stSkip" style="color:var(--bad)">0</div><div class="l">不练本</div></div>
+    <div class="stat"><div class="n" id="stAsked">0</div><div class="l">累计答题</div></div>
+    <div class="stat"><div class="n" id="stAcc">–</div><div class="l">正确率</div></div>
+    <div class="stat book" id="bkErr" data-tab="err"><div class="n bad" id="stErr">0</div><div class="l">错题本 ›</div></div>
+    <div class="stat book" id="bkNB" data-tab="nb"><div class="n nbc" id="stNB">0</div><div class="l">不熟本 ›</div></div>
+    <div class="stat book" id="bkGrad" data-tab="grad"><div class="n gold" id="stGrad">0</div><div class="l">毕业本 ›</div></div>
+    <div class="stat book" id="bkMem" data-tab="mem"><div class="n memc" id="stMem">0</div><div class="l">熟记本 ›</div></div>
+    <div class="stat book" id="bkSkip" data-tab="skip"><div class="n" id="stSkip" style="color:var(--bad)">0</div><div class="l">不练本 ›</div></div>
+    <div class="stat book" id="bkClean" data-tab="clean"><div class="n" id="stClean" style="color:var(--ok)">0</div><div class="l">全对词 ›</div></div>
   </div>
   <div class="card" id="todayCard" style="display:none">
     <div class="today"><span style="color:var(--sub);font-size:13px">近 7 天答题量</span><span id="todayTxt" style="font-size:13px;color:var(--sub)"></span></div>
@@ -193,16 +205,21 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="chips" id="autoChips"></div>
     <button class="btn" id="btnStart">开始练习</button>
     <button class="btn ghost" id="btnBook">学习记录</button>
-    <div class="hint">当前档案：<b id="hintUser"></b>。答错的词自动进错题本，<b>答错后不自动跳题</b>——
-      可细看这个词，点卡片下方「下一词 ›」再继续；<b>连续答对 5 次</b>自动毕业移出错题本，期间再答错则连对归零。
-      做题时点「⚠ 不熟」把词记入<b>不熟本</b>并直接下一词，回顾上一词时也可补记；连对 3 次自动移出不熟本。
-      做题时点「🚫 不练 · 我已牢记」把词记入<b>不练本</b>并直接下一词，该词以后不会再出现（包括错题本/不熟本/毕业本回退轮），除非在「学习记录 → 不练本」中手动移出。
-      同一个词<b>连续答对 10 次</b>会记入<b>熟记本</b>（中途答错则连续次数清零，需重新累加；之后再答错则移出熟记本）。毕业的词记入「毕业本」，答对过且从没错的词记入「全对词」。音标为英式（DJ 音标）。
-      <b>词频范围</b>按名次分 5 段：1-1000 / 1001-2000 / 2001-3000 / 3001-4000 / 4001-5000，只对日常词库生效。
-      <b>出题顺序</b>可选「按顺序(词频)」「乱序」「按字母 A-Z」；按顺序与 A-Z 会记住上次练到的位置，下一轮接着往下背，练到末尾回到开头。
-      <b>每题加载时自动发音</b>开启后，每加载一个新题目都会自动用浏览器 TTS 朗读一次（每次 speak() 内部 cancel 上一段，无网络请求，资源消耗极低）。
-      「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。
-      <b>词库</b>可在「日常高频」「计算机专业」(IT 术语)、「外贸专用」(函电/物流/结算/报关)、「四六级」(大纲词)、「托福雅思」(留学考试词)间切换，后四个词库均只收日常词库没有的词；错题本/不熟本/熟记本等记录各词库共用。</div>
+    <div class="hint">
+      <div>当前档案：<b id="hintUser"></b>。音标为英式（DJ 音标）。</div>
+      <ol>
+        <li>答错的词自动进<b>错题本</b>，<b>答错后不自动跳题</b>——可细看这个词，点卡片下方「下一词 ›」再继续；<b>连续答对 5 次</b>自动毕业移出错题本，期间再答错则连对归零。</li>
+        <li>做题时点「⚠ 不熟」把词记入<b>不熟本</b>并直接下一词，回顾上一词时也可补记；连对 3 次自动移出不熟本。</li>
+        <li>做题时点「🚫 不练 · 我已牢记」把词记入<b>不练本</b>并直接下一词，该词以后不会再出现（包括错题本/不熟本/毕业本回退轮），除非在「学习记录 → 不练本」中手动移出。</li>
+        <li>同一个词<b>连续答对 10 次</b>会记入<b>熟记本</b>（中途答错则连续次数清零，需重新累加；之后再答错则移出熟记本）。毕业的词记入「毕业本」，答对过且从没错的词记入「全对词」。</li>
+        <li><b>词库</b>可在「日常高频」「计算机专业」(IT 术语)、「外贸专用」(函电/物流/结算/报关)、「四六级」(大纲词)、「托福雅思」(留学考试词)间切换，后四个词库均只收日常词库没有的词；错题本/不熟本/熟记本等记录各词库共用。</li>
+        <li><b>词频范围</b>按名次分 5 段：1-1000 / 1001-2000 / 2001-3000 / 3001-4000 / 4001-5000，只对日常词库生效。</li>
+        <li><b>出题顺序</b>可选「按顺序(词频)」「乱序」「按字母 A-Z」；按顺序与 A-Z 会记住上次练到的位置，下一轮接着往下背，练到末尾回到开头。</li>
+        <li><b>每题加载时自动发音</b>开启后，每加载一个新题目都会自动用浏览器 TTS 朗读一次（每次 speak() 内部 cancel 上一段，无网络请求，资源消耗极低）。</li>
+        <li>「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。</li>
+        <li>首页顶部 6 个「本」点击即可跳到对应的学习记录 tab；学习记录页可按「字母升序 / 词频顺序 / 加入时间」三种规则重新排序。</li>
+      </ol>
+    </div>
   </div>
 </div>
 
@@ -256,6 +273,14 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="tab" id="tabClean">全对词</div>
   </div>
   <input type="search" id="bookSearch" placeholder="搜索单词或释义…">
+  <div class="bookSort">
+    <span>排序</span>
+    <div class="seg" id="bookSortSeg">
+      <span data-sort="time" class="on">加入时间</span>
+      <span data-sort="freq">词频顺序</span>
+      <span data-sort="az">字母 A-Z</span>
+    </div>
+  </div>
   <div class="card" id="bookList"></div>
   <button class="btn" id="btnDrill">只练错题本（冲刺毕业）</button>
   <div class="row">
@@ -419,6 +444,7 @@ function renderHome(){
   $('stGrad').textContent = Object.keys(grad).length;
   $('stMem').textContent = Object.keys(mem).length;
   $('stSkip').textContent = Object.keys(skip).length;
+  $('stClean').textContent = Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w] && !mem[w] && !skip[w]).length;
   mkChips('bankChips', BANK_DEF.map(b => ({v:b.k, t:b.chip})),
     v => cfg.bank===v, v => cfg.bank=v);
   const isCS = cfg.bank!=='daily';                     // 词频范围只对日常词库生效
@@ -874,6 +900,7 @@ function endRound(){
 
 /* ---------------- 学习记录 ---------------- */
 let bookTab = 'err';
+let bookSort = 'time';                                  // 排序: time=加入时间, freq=词频顺序, az=字母A-Z
 function bookRows(){
   const kw = $('bookSearch').value.trim().toLowerCase();
   const pick = (tab) => {
@@ -885,13 +912,22 @@ function bookRows(){
     else if (tab==='mem') rows = Object.keys(mem).map(w => { const i = W.findIndex(x=>x[0]===w); return i<0?null:{i,w,m:mem[w]}; });
     else rows = Object.keys(rec).map(w => { const i = W.findIndex(x=>x[0]===w); return i<0?null:{i,w,r:rec[w]}; })
             .filter(e => e.r.w===0 && !grad[e.w] && !nb[e.w] && !mem[e.w] && !skip[e.w]);
-    return rows.filter(Boolean)
-      .filter(e => !kw || e.w.includes(kw) || W[e.i][3].toLowerCase().includes(kw))
-      .sort((a,b) => tab==='err' ? (err[b.w].n-err[a.w].n || err[b.w].s-err[a.w].s)
-           : tab==='grad' ? (grad[b.w].t-grad[a.w].t)
-           : tab==='nb' ? (nb[b.w].t-nb[a.w].t)
-           : tab==='skip' ? (skip[b.w].t-skip[a.w].t)
-           : tab==='mem' ? (mem[b.w].t-mem[a.w].t) : (b.r.a-a.r.a));
+    rows = rows.filter(Boolean).filter(e => !kw || e.w.includes(kw) || W[e.i][3].toLowerCase().includes(kw));
+    // 排序: 按用户当前选择(time / freq / az); time 模式按错误次数/连续次数等业务字段
+    const byTime = (a, b) => {
+      if (tab==='err') return (err[b.w].t - err[a.w].t) || (err[b.w].n - err[a.w].n) || (err[b.w].s - err[a.w].s);
+      if (tab==='grad') return grad[b.w].t - grad[a.w].t;
+      if (tab==='nb')   return nb[b.w].t   - nb[a.w].t;
+      if (tab==='skip') return skip[b.w].t - skip[a.w].t;
+      if (tab==='mem')  return mem[b.w].t  - mem[a.w].t;
+      return rec[b.w].t - rec[a.w].t;
+    };
+    const byFreq = (a, b) => (a.i - b.i);                // W 中索引即词频名次(升序)
+    const byAZ   = (a, b) => (a.w < b.w ? -1 : a.w > b.w ? 1 : 0);
+    if (bookSort === 'az')   rows.sort(byAZ);
+    else if (bookSort === 'freq') rows.sort(byFreq);
+    else rows.sort(byTime);
+    return rows;
   };
   return pick(bookTab);
 }
@@ -902,6 +938,8 @@ function renderBook(){
   $('tabSkip').className  = 'tab' + (bookTab==='skip'?' on':'');
   $('tabMem').className   = 'tab' + (bookTab==='mem'?' on':'');
   $('tabClean').className = 'tab' + (bookTab==='clean'?' on':'');
+  // 排序按钮高亮
+  document.querySelectorAll('#bookSortSeg span').forEach(s => s.className = s.dataset.sort===bookSort?' on':'');
   $('tabErr').textContent   = '错题本（'+Object.keys(err).length+'）';
   $('tabGrad').textContent  = '毕业本（'+Object.keys(grad).length+'）';
   $('tabNB').textContent    = '不熟本（'+Object.keys(nb).length+'）';
@@ -1014,6 +1052,14 @@ $('btnNext').onclick = () => {
 $('tabNB').onclick  = () => { bookTab='nb';    renderBook(); };
 $('tabSkip').onclick = () => { bookTab='skip';  renderBook(); };
 $('tabMem').onclick = () => { bookTab='mem';   renderBook(); };
+// 首页 → 学习记录: 点击 6 个「本」直接跳到对应 tab
+document.querySelectorAll('.stat.book').forEach(el => {
+  el.onclick = () => { bookTab = el.dataset.tab; renderBook(); show('book'); };
+});
+// 学习记录页: 排序选择
+document.querySelectorAll('#bookSortSeg span').forEach(s => {
+  s.onclick = () => { bookSort = s.dataset.sort; renderBook(); };
+});
 $('btnDrill').onclick = () => {
   const kw = $('bookSearch').value.trim().toLowerCase();
   const src = bookTab==='err' ? Object.keys(err) : bookTab==='grad' ? Object.keys(grad)
