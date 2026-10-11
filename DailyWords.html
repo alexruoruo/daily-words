@@ -33,6 +33,36 @@ header .cnt{font-size:12px;color:var(--sub)}
 .uchip{margin-left:auto;display:flex;align-items:center;gap:6px;background:var(--chip);border-radius:999px;
   padding:6px 12px;font-size:13px;cursor:pointer;color:var(--ink);flex:none}
 .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
+
+/* ========== 答题日历 ========== */
+.calTop{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:14px}
+.calNav{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--chip);cursor:pointer;user-select:none;color:var(--ink);transition:background .15s}
+.calNav:hover{background:var(--line)}
+.calNav:active{transform:scale(.92)}
+.calTitle{flex:1;text-align:center;font-weight:700;font-size:15px;font-feature-settings:"tnum"}
+.calLegend{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);margin-left:auto}
+.calLegend .sw{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin:0 1px}
+.calWk{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;font-size:11px;color:var(--sub);text-align:center}
+.calWk div{line-height:1}
+.calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calCell{aspect-ratio:1/1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;cursor:pointer;color:var(--sub);background:var(--chip);position:relative;transition:transform .1s,box-shadow .15s;user-select:none}
+.calCell:hover{transform:scale(1.06)}
+.calCell.empty{background:transparent;cursor:default;pointer-events:none}
+.calCell.empty:hover{transform:none}
+.calCell.has{color:var(--ink);font-weight:600}
+.calCell[data-lv="1"]{background:#dde9fb;color:var(--brand)}
+.calCell[data-lv="2"]{background:#9bbde8;color:#0c3470}
+.calCell[data-lv="3"]{background:#5b8fd1;color:#fff}
+.calCell[data-lv="4"]{background:#2f5fa8;color:#fff}
+.calCell.today{box-shadow:inset 0 0 0 2px var(--bad);font-weight:800}
+.calCell.today::after{content:"今";position:absolute;top:1px;right:3px;font-size:8px;color:var(--bad);font-weight:700}
+.calCell.sel{box-shadow:inset 0 0 0 2px var(--gold)}
+@media (prefers-color-scheme: dark){
+  .calCell[data-lv="1"]{background:#243248;color:#a8c2e6}
+  .calCell[data-lv="2"]{background:#345278;color:#d3e2f5}
+  .calCell[data-lv="3"]{background:#4a6f9a;color:#fff}
+  .calCell[data-lv="4"]{background:#6896c8;color:#fff}
+}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:3px;text-align:center}
 .stats .n{font-size:16px;font-weight:800;color:var(--brand)}
 .stats .n.bad{color:var(--bad)}
@@ -185,6 +215,28 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="today"><span style="color:var(--sub);font-size:13px">近 7 天答题量</span><span id="todayTxt" style="font-size:13px;color:var(--sub)"></span></div>
     <div class="week" id="weekBars"></div>
     <div id="dayDetail" class="hide" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:13px;text-align:left"></div>
+  </div>
+  <div class="card" id="calCard">
+    <div class="calTop">
+      <span class="calNav" id="calPrevY" title="上一年">«</span>
+      <span class="calNav" id="calPrevM" title="上一月">‹</span>
+      <span class="calTitle" id="calTitle">— 年 — 月</span>
+      <span class="calNav" id="calNextM" title="下一月">›</span>
+      <span class="calNav" id="calNextY" title="下一年">»</span>
+      <span class="calLegend">
+        <span class="sw" style="background:var(--chip)"></span>少
+        <span class="sw" data-lv="1" style="background:#dde9fb"></span>
+        <span class="sw" data-lv="2" style="background:#9bbde8"></span>
+        <span class="sw" data-lv="3" style="background:#5b8fd1"></span>
+        <span class="sw" data-lv="4" style="background:#2f5fa8"></span>多
+      </span>
+    </div>
+    <div class="calWk">
+      <div>日</div><div>一</div><div>二</div><div>三</div>
+      <div>四</div><div>五</div><div>六</div>
+    </div>
+    <div class="calGrid" id="calGrid"></div>
+    <div id="calDetail" class="hide" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:13px;text-align:left"></div>
   </div>
   <div class="card">
     <div class="lbl" style="margin-top:0">词库</div>
@@ -479,6 +531,12 @@ function renderHome(){
     if (_selDay && days.some(d => d.k === _selDay)) showDayDetail(_selDay);
     else { $('dayDetail').classList.add('hide'); _selDay = null; }
   }
+  // 年历视图
+  if (calY === undefined){
+    const t = new Date();
+    calY = t.getFullYear(); calM = t.getMonth();    // 首次进入 = 当前月
+  }
+  renderCal();
 }
 let _selDay = null;                                  // 当前柱状图选中的日期
 function showDayDetail(dk){
@@ -504,6 +562,85 @@ $('weekBars').addEventListener('click', e => {
   const col = e.target.closest('.col');
   if (!col || !col.dataset.d) return;
   showDayDetail(col.dataset.d);
+});
+
+/* ---------------- 答题日历 ---------------- */
+let calY, calM;                                       // 当前显示的年/月
+let calSelDay = null;                                 // 日历选中态(与 7 天视图的 _selDay 互不干扰)
+
+function calHeatLevel(a){
+  if (!a) return 0;
+  if (a < 10) return 1;
+  if (a < 30) return 2;
+  if (a < 60) return 3;
+  return 4;
+}
+
+function calMove(deltaY, deltaM){
+  calM += deltaM; calY += deltaY;
+  while (calM < 0)  { calM += 12; calY -= 1; }
+  while (calM > 11) { calM -= 12; calY += 1; }
+  calSelDay = null;
+  renderCal();
+}
+
+function renderCal(){
+  $('calTitle').textContent = calY + ' 年 ' + (calM+1) + ' 月';
+  const first = new Date(calY, calM, 1);
+  const startWd = first.getDay();                    // 0=Sun
+  const lastDay = new Date(calY, calM+1, 0).getDate();
+  const todayKey = dayKey();
+  const cells = [];
+  for (let i=0;i<startWd;i++) cells.push('<div class="calCell empty"></div>');
+  for (let d=1; d<=lastDay; d++){
+    const dk = dayKey(new Date(calY, calM, d));
+    const h = hist[dk];
+    const a = h ? (h.a||0) : 0;
+    const lv = calHeatLevel(a);
+    const cls = ['calCell'];
+    if (a > 0) cls.push('has');
+    if (dk === todayKey) cls.push('today');
+    if (dk === calSelDay) cls.push('sel');
+    cells.push('<div class="'+cls.join(' ')+'"'+
+      (a>0 ? ' data-lv="'+lv+'"' : '')+' data-d="'+dk+'"'+
+      ' title="'+dk+(a?' · '+a+' 题':'')+'"><span class="n">'+d+'</span></div>');
+  }
+  while (cells.length % 7) cells.push('<div class="calCell empty"></div>');
+  $('calGrid').innerHTML = cells.join('');
+  $('calDetail').classList.add('hide');
+}
+
+function showCalDetail(dk){
+  calSelDay = (calSelDay === dk) ? null : dk;
+  $$('.calCell.has').forEach(c => c.classList.toggle('sel', c.dataset.d === calSelDay));
+  if (!calSelDay){ $('calDetail').classList.add('hide'); return; }
+  const h = hist[dk] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
+  const acc = h.a ? Math.round(h.r/h.a*100) : 0;
+  const wd = ['日','一','二','三','四','五','六'][new Date(dk).getDay()];
+  $('calDetail').innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:baseline">'+
+      '<b>'+dk+'（周'+wd+'）</b>'+
+      '<span style="font-size:11px;color:var(--sub)">点击同一日再次点击收起</span>'+
+    '</div>'+
+    '<div style="margin-top:4px">答 <b>'+h.a+'</b> · 对 <b style="color:var(--ok)">'+h.r+'</b> · 正确率 <b>'+acc+'%</b></div>'+
+    '<div style="margin-top:4px;font-size:12px;color:var(--sub)">'+
+      '<span style="color:var(--bad);font-weight:700">新错 '+h.e+'</span> · '+
+      '<span style="color:var(--gold);font-weight:700">毕业 '+h.g+'</span> · '+
+      '<span style="color:var(--nbink);font-weight:700">标记不熟 '+h.n+'</span> · '+
+      '<span style="color:var(--memink);font-weight:700">记入熟记 '+h.m+'</span> · '+
+      '<span style="color:var(--ink);font-weight:700">标记不练 '+h.k+'</span>'+
+    '</div>';
+  $('calDetail').classList.remove('hide');
+}
+
+$('calPrevY').onclick = () => calMove(-1,  0);
+$('calPrevM').onclick = () => calMove( 0, -1);
+$('calNextM').onclick = () => calMove( 0,  1);
+$('calNextY').onclick = () => calMove( 1,  0);
+$('calGrid').addEventListener('click', e => {
+  const cell = e.target.closest('.calCell.has');    // 仅响应有数据的格子, 无数据日点击无反应
+  if (!cell || !cell.dataset.d) return;
+  showCalDetail(cell.dataset.d);
 });
 
 /* ---------------- 出题 ---------------- */
