@@ -209,8 +209,8 @@ input:focus{outline:none;border-color:var(--brand)}
       <div>当前档案：<b id="hintUser"></b>。音标为英式（DJ 音标）。</div>
       <ol>
         <li>答错的词自动进<b>错题本</b>，<b>答错后不自动跳题</b>——可细看这个词，点卡片下方「下一词 ›」再继续；<b>连续答对 5 次</b>自动毕业移出错题本，期间再答错则连对归零。</li>
-        <li>做题时点「⚠ 不熟」把词记入<b>不熟本</b>并直接下一词，回顾上一词时也可补记；连对 3 次自动移出不熟本。</li>
-        <li>做题时点「🚫 不练 · 我已牢记」把词记入<b>不练本</b>并直接下一词，该词以后不会再出现（包括错题本/不熟本/毕业本回退轮），除非在「学习记录 → 不练本」中手动移出。</li>
+        <li>做题时点「⚠ 不熟」把词记入<b>不熟本</b>（不自动跳下一词，需手动点「下一词 ›」）；回顾上一词时也可补记；连对 3 次自动移出不熟本。</li>
+        <li>做题时点「🚫 不练 · 我已牢记」把词记入<b>不练本</b>（不自动跳下一词，需手动点「下一词 ›」）；该词以后不会再出现（包括错题本/不熟本/毕业本回退轮），除非在「学习记录 → 不练本」中手动移出。</li>
         <li>同一个词<b>连续答对 10 次</b>会记入<b>熟记本</b>（中途答错则连续次数清零，需重新累加；之后再答错则移出熟记本）。毕业的词记入「毕业本」，答对过且从没错的词记入「全对词」。</li>
         <li><b>词库</b>可在「日常高频」「计算机专业」(IT 术语)、「外贸专用」(函电/物流/结算/报关)、「四六级」(大纲词)、「托福雅思」(留学考试词)间切换，后四个词库均只收日常词库没有的词；错题本/不熟本/熟记本等记录各词库共用。</li>
         <li><b>词频范围</b>按名次分 5 段：1-1000 / 1001-2000 / 2001-3000 / 3001-4000 / 4001-5000，只对日常词库生效。</li>
@@ -598,9 +598,9 @@ function setNB(w){
   if (!b) return;
   const on = !!nb[w];
   b.className = 'opt nb5' + (on ? ' on' : '');
-  b.textContent = on ? '⚠ 已在不熟本 · 下一词' : '⚠ 不熟 · 记入并下一词';
+  b.textContent = on ? '⚠ 已在不熟本' : '⚠ 不熟 · 记入不熟本';
 }
-function nbSkip(){                                   // 记入不熟本并直接过这个词
+function nbSkip(){                                   // 记入不熟本(不自动跳下一词, 需手动点「下一词」)
   if (!cur) return;
   const w = W[cur.i][0];
   if (!nb[w]){
@@ -609,13 +609,13 @@ function nbSkip(){                                   // 记入不熟本并直接
     hist[dk] = hist[dk] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
     hist[dk].n++;
     K.set(uk('hist'), hist);
+    if (!cur.done){
+      log.push({i: cur.i, skip: true});
+      updBar();
+    }
   }
   K.set(uk('nb'), nb);
-  if (!cur.done){
-    log.push({i: cur.i, skip: true});
-    updBar();
-    next();
-  } else setNB(w);
+  setNB(w);                                          // 立即更新按钮文案
 }
 function nbDel(w){ delete nb[w]; K.set(uk('nb'), nb); renderBook(); renderHome(); }
 let skBtn = null;                                    // 第6个"不练"选项按钮
@@ -624,9 +624,9 @@ function setSK(w){
   if (!b) return;
   const on = !!skip[w];
   b.className = 'opt sk' + (on ? ' on' : '');
-  b.textContent = on ? '🚫 已在不练本 · 点此移出' : '🚫 不练 · 我已牢记';
+  b.textContent = on ? '🚫 已在不练本' : '🚫 不练 · 我已牢记';
 }
-function skSkip(){                                   // 记入不练本并直接过这个词
+function skSkip(){                                   // 记入不练本(不自动跳下一词, 需手动点「下一词」)
   if (!cur) return;
   const w = W[cur.i][0];
   if (!skip[w]){
@@ -639,13 +639,13 @@ function skSkip(){                                   // 记入不练本并直接
     K.set(uk('hist'), hist);
     K.set(uk('err'), err);
     K.set(uk('nb'), nb);
+    if (!cur.done){
+      log.push({i: cur.i, skip: true});
+      updBar();
+    }
   }
   K.set(uk('skip'), skip);
-  if (!cur.done){
-    log.push({i: cur.i, skip: true});
-    updBar();
-    next();
-  } else setSK(w);
+  setSK(w);                                          // 立即更新按钮文案
 }
 function skDel(w){ delete skip[w]; K.set(uk('skip'), skip); renderBook(); renderHome(); }
 function updBar(){
