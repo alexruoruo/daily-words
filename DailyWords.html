@@ -687,7 +687,7 @@ function renderQ(){                                  // 渲染当前待答的题
     b.onclick = () => answer(k);
     box.appendChild(b);
   });
-  const b5 = document.createElement('button');       // 第5个选项: 不熟, 记入并下一词
+  const b5 = document.createElement('button');       // 第5个选项: 不熟, 记入不熟本
   b5.className = 'opt nb5';
   b5.onclick = nbSkip;
   nbBtn = b5;
