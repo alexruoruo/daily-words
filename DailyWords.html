@@ -609,13 +609,15 @@ function nbSkip(){                                   // 记入不熟本(不自�
     hist[dk] = hist[dk] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
     hist[dk].n++;
     K.set(uk('hist'), hist);
-    if (!cur.done){
-      log.push({i: cur.i, skip: true});
-      updBar();
-    }
   }
   K.set(uk('nb'), nb);
   setNB(w);                                          // 立即更新按钮文案
+  if (!cur.done){                                    // 未答: 显示「下一词」按钮供手动切题(避免与 setTimeout(next) 双重推进)
+    log.push({i: cur.i, skip: true});
+    updBar();
+    waitNext = true;
+    $('btnNext').style.visibility = 'visible';
+  }
 }
 function nbDel(w){ delete nb[w]; K.set(uk('nb'), nb); renderBook(); renderHome(); }
 let skBtn = null;                                    // 第6个"不练"选项按钮
@@ -639,13 +641,15 @@ function skSkip(){                                   // 记入不练本(不自�
     K.set(uk('hist'), hist);
     K.set(uk('err'), err);
     K.set(uk('nb'), nb);
-    if (!cur.done){
-      log.push({i: cur.i, skip: true});
-      updBar();
-    }
   }
   K.set(uk('skip'), skip);
   setSK(w);                                          // 立即更新按钮文案
+  if (!cur.done){                                    // 未答: 显示「下一词」按钮供手动切题(避免与 setTimeout(next) 双重推进)
+    log.push({i: cur.i, skip: true});
+    updBar();
+    waitNext = true;
+    $('btnNext').style.visibility = 'visible';
+  }
 }
 function skDel(w){ delete skip[w]; K.set(uk('skip'), skip); renderBook(); renderHome(); }
 function updBar(){
