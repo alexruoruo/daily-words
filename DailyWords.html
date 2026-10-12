@@ -105,6 +105,7 @@ input:focus{outline:none;border-color:var(--brand)}
 .qmeta{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-bottom:10px}
 .qcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 16px;text-align:center;margin-bottom:14px}
 .qword{font-size:34px;font-weight:800;color:var(--brand);letter-spacing:.5px}
+.qword.nb{background:#e23b3b;color:#fff;border-radius:8px;padding:4px 14px;display:inline-block}
 .qphon{font-size:16px;color:#98a2ae;margin-top:8px;font-family:"Segoe UI",system-ui,sans-serif}
 .spk{cursor:pointer;display:inline-block;font-size:15px;margin-left:0;opacity:.65;user-select:none;vertical-align:middle;transition:opacity .15s,transform .1s}
 .spk:hover{opacity:1}
@@ -749,6 +750,7 @@ function nbSkip(){                                   // 记入不熟本(不自�
   const w = W[cur.i][0];
   if (!nb[w]){
     nb[w] = {s:0, t:Date.now()};
+    if (skip[w]){ delete skip[w]; K.set(uk('skip'), skip); }  // 互斥: 同步移出不练本
     const dk = dayKey();
     hist[dk] = hist[dk] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
     hist[dk].n++;
@@ -756,6 +758,7 @@ function nbSkip(){                                   // 记入不熟本(不自�
   }
   K.set(uk('nb'), nb);
   setNB(w);                                          // 立即更新按钮文案
+  setSK(w);                                          // 互斥: 同步刷新"不练"按钮文案
   if (!cur.done){                                    // 未答: 显示「下一词」按钮供手动切题(避免与 setTimeout(next) 双重推进)
     log.push({i: cur.i, skip: true});
     updBar();
@@ -820,7 +823,7 @@ function renderQ(){                                  // 渲染当前待答的题
   const e = err[w];
   const en2zh = cfg.dir==='en2zh';
   $('qCard').innerHTML = en2zh
-    ? '<div class="qword">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>' : '')
+    ? '<div class="qword'+(nb[w]?' nb':'')+'">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>' : '')
     : '<div class="qtrans">'+esc(t)+'</div>';
   $('fb').textContent = '';
   $('qNum').textContent = '第 ' + (log.length+1) + ' 题 · ' +
@@ -872,14 +875,17 @@ function renderReview(){
   else tag = '<span style="color:var(--bad);font-weight:700">✗ 答错</span><div style="margin-top:4px">你选「'+esc(e.chosen)+'」 · 正确「'+esc(e.right)+'」</div>';
   $('opts').innerHTML = '';
   $('fb').textContent = '';
-  $('qCard').innerHTML = '<div class="qword">'+esc(w)+'</div>' + (p?'<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>':'') +
+  $('qCard').innerHTML = '<div class="qword'+(nb[w]?' nb':'')+'">'+esc(w)+'</div>' + (p?'<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>':'') +
     '<div class="qtrans" style="margin-top:8px">'+esc(t)+'</div>' +
     '<div style="margin-top:10px;font-size:13px;color:var(--sub);text-align:left">'+tag+'</div>';
   const bb = document.createElement('button');        // 回顾页: 加入/移出不熟本
   bb.className = 'opt nb5' + (nb[w] ? ' on' : '');
   bb.textContent = nb[w] ? '⚠ 已在不熟本 · 点此移出' : '⚠ 不熟 · 记入不熟本';
-  bb.onclick = () => { if (nb[w]) delete nb[w]; else nb[w] = {s:0, t:Date.now()};
-    K.set(uk('nb'), nb); setNB(w); renderReview(); };
+  bb.onclick = () => {
+    if (nb[w]){ delete nb[w]; }
+    else { nb[w] = {s:0, t:Date.now()}; if (skip[w]){ delete skip[w]; K.set(uk('skip'), skip); } }  // 互斥: 同步移出不练本
+    K.set(uk('nb'), nb); setNB(w); renderReview();
+  };
   const ss = document.createElement('button');        // 回顾页: 加入/移出不练本
   ss.className = 'opt sk' + (skip[w] ? ' on' : '');
   ss.textContent = skip[w] ? '🚫 已在不练本 · 点此移出' : '🚫 不练 · 我已牢记';
