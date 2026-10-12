@@ -411,11 +411,16 @@ function showOptDetail(W_row){
   $('omTran').textContent = t;
   $('optModal').classList.remove('hide');
 }
-$('optModal').addEventListener('click', () => $('optModal').classList.add('hide'));
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !$('optModal').classList.contains('hide'))
-    $('optModal').classList.add('hide');
-});
+// 等 DOM 全部就位后再挂事件(#optModal 在 script 之后才被解析, 此时不存在)
+function _initOptModal(){
+  $('optModal').addEventListener('click', () => $('optModal').classList.add('hide'));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !$('optModal').classList.contains('hide'))
+      $('optModal').classList.add('hide');
+  });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _initOptModal);
+else _initOptModal();
 
 const uk = k => 'hv.u.' + user + '.' + k;
 const NEED = 5;                                    // 错题本毕业: 连续答对次数
