@@ -171,6 +171,16 @@ input:focus{outline:none;border-color:var(--brand)}
 .bookSort .seg span.on{background:var(--chipon);color:#fff;font-weight:700}
 .bookSort .seg span:not(.on):hover{background:var(--chip)}
 .hide{display:none!important}
+.optmodal{position:fixed;inset:0;background:rgba(10,16,30,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:18px}
+.optmodal-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px;max-width:440px;width:100%;max-height:84vh;overflow:auto;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.optmodal-word{font-size:30px;font-weight:800;color:var(--brand);letter-spacing:.5px;margin-bottom:6px;word-break:break-word}
+.optmodal-phon{font-size:14px;color:#98a2ae;margin-bottom:12px;font-family:"Segoe UI",system-ui,sans-serif}
+.optmodal-tag{font-size:12px;margin-bottom:12px;min-height:16px}
+.optmodal-tag .tnb{color:#fff;background:#e23b3b;padding:3px 9px;border-radius:6px;font-weight:700;margin-right:6px;display:inline-block}
+.optmodal-tag .tsk{color:#fff;background:#888;padding:3px 9px;border-radius:6px;font-weight:700;margin-right:6px;display:inline-block}
+.optmodal-tran{font-size:16px;line-height:1.7;color:var(--ink);text-align:left;white-space:pre-wrap;word-break:break-word;margin-bottom:14px;max-height:52vh;overflow:auto;background:var(--bg);padding:12px 14px;border-radius:10px}
+.optmodal-close{padding:9px 22px;border:none;border-radius:10px;background:var(--brand);color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.optmodal-close:hover{opacity:.85}
 #mask{position:fixed;inset:0;background:rgba(10,16,30,.45);z-index:9;display:flex;align-items:flex-end;justify-content:center}
 #userPanel{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px 26px}
 #userPanel h3{margin:0 0 12px;font-size:16px}
@@ -269,6 +279,7 @@ input:focus{outline:none;border-color:var(--brand)}
         <li><b>词频范围</b>按名次分 5 段：1-1000 / 1001-2000 / 2001-3000 / 3001-4000 / 4001-5000，只对日常词库生效。</li>
         <li><b>出题顺序</b>可选「按顺序(词频)」「乱序」「按字母 A-Z」；按顺序与 A-Z 会记住上次练到的位置，下一轮接着往下背，练到末尾回到开头。</li>
         <li><b>每题加载时自动发音</b>开启后，每加载一个新题目都会自动用浏览器 TTS 朗读一次（每次 speak() 内部 cancel 上一段，无网络请求，资源消耗极低）。</li>
+        <li><b>双击选项</b>可弹出大字号释义弹窗，方便看清长词意；单击仍是答题（双击判定窗口 300ms）。弹窗可点关闭、点遮罩或按 <kbd>ESC</kbd> 关闭。</li>
         <li>「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。</li>
         <li>首页顶部 6 个「本」点击即可跳到对应的学习记录 tab；学习记录页可按「字母升序 / 词频顺序 / 加入时间」三种规则重新排序。</li>
       </ol>
@@ -385,6 +396,25 @@ document.addEventListener('click', e => {
   if (!t) return;
   e.stopPropagation(); e.preventDefault();
   speak(t.dataset.w);
+});
+
+/* ---------------- 释义弹窗(双击选项触发) ---------------- */
+function showOptDetail(W_row){
+  const [w, p, , t] = W_row;
+  $('omWord').textContent = w;
+  $('omPhon').textContent = p ? '/' + p + '/' : '';
+  $('omPhon').style.display = p ? '' : 'none';
+  let tag = '';
+  if (nb[w]) tag += '<span class="tnb">⚠ 不熟本</span>';
+  if (skip[w]) tag += '<span class="tsk">🚫 不练本</span>';
+  $('omTag').innerHTML = tag;
+  $('omTran').textContent = t;
+  $('optModal').classList.remove('hide');
+}
+$('optModal').addEventListener('click', () => $('optModal').classList.add('hide'));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('optModal').classList.contains('hide'))
+    $('optModal').classList.add('hide');
 });
 
 const uk = k => 'hv.u.' + user + '.' + k;
@@ -835,7 +865,17 @@ function renderQ(){                                  // 渲染当前待答的题
     b.className = 'opt';
     const [w2,p2,,t2] = W[j];
     b.innerHTML = en2zh ? esc(t2) : '<b>'+esc(w2)+'</b>' + ((cfg.phon && p2) ? ' <span class="spk" data-w="'+esc(w2)+'" title="点击发音">🔊</span><span class="spkphon" data-w="'+esc(w2)+'" title="点击发音" style="color:#98a2ae;font-size:13px">/'+esc(p2)+'/</span>' : '');
-    b.onclick = () => answer(k);
+    // 双击 = 弹释义窗; 单击 = 答题 (300ms 内若无第 2 次点击再提交)
+    let _dcLast = 0, _dcPending = null;
+    b.onclick = () => {
+      const now = Date.now();
+      if (_dcPending) { clearTimeout(_dcPending); _dcPending = null; _dcLast = 0; showOptDetail(W[j]); return; }
+      _dcLast = now;
+      _dcPending = setTimeout(() => {
+        _dcPending = null;
+        if (_dcLast === now) answer(k);
+      }, 300);
+    };
     box.appendChild(b);
   });
   const b5 = document.createElement('button');       // 第5个选项: 不熟, 记入不熟本
@@ -1267,4 +1307,15 @@ try {
 } catch(e){}
 </script>
 </body>
+
+<!-- 释义弹窗: 双击答题选项触发 -->
+<div id="optModal" class="optmodal hide">
+  <div class="optmodal-card" onclick="event.stopPropagation()">
+    <div class="optmodal-word" id="omWord"></div>
+    <div class="optmodal-phon" id="omPhon"></div>
+    <div class="optmodal-tag" id="omTag"></div>
+    <div class="optmodal-tran" id="omTran"></div>
+    <button class="optmodal-close" onclick="$('optModal').classList.add('hide')">关闭</button>
+  </div>
+</div>
 </html>
