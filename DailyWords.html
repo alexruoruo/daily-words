@@ -87,6 +87,7 @@ header .cnt{font-size:12px;color:var(--sub)}
 .btn{display:block;width:100%;padding:13px;border:none;border-radius:12px;font-size:16px;font-weight:700;
   background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;cursor:pointer;margin-top:12px}
 .btn.ghost{background:none;border:1.5px solid var(--brand);color:var(--brand)}
+.btn.ghost.on{background:var(--brand);color:#fff;border-color:transparent}
 .row{display:flex;gap:10px}
 input[type=text],input[type=search]{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;
   background:var(--card);color:var(--ink);font-size:15px}
@@ -337,6 +338,15 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="tab" id="tabClean">全对词</div>
   </div>
   <input type="search" id="bookSearch" placeholder="搜索单词或释义…">
+  <div class="row">
+    <button class="btn" id="btnDrill">练当前本</button>
+    <button class="btn ghost" id="btnExport">导出当前</button>
+    <button class="btn ghost" id="btnClear">清空当前本</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn ghost" id="btnHideEn">隐藏英文</button>
+    <button class="btn ghost" id="btnHideZh">隐藏中文</button>
+  </div>
   <div class="bookSort">
     <span>排序</span>
     <div class="seg" id="bookSortSeg">
@@ -346,11 +356,6 @@ input:focus{outline:none;border-color:var(--brand)}
     </div>
   </div>
   <div class="card" id="bookList"></div>
-  <button class="btn" id="btnDrill">只练错题本（冲刺毕业）</button>
-  <div class="row">
-    <button class="btn ghost" id="btnExport">导出当前列表</button>
-    <button class="btn ghost" id="btnClear">清空我的记录</button>
-  </div>
 </div>
 
 <!-- 用户面板 -->
@@ -453,7 +458,9 @@ function loadUser(name){
   skip  = K.get(uk('skip'), {});
   hist  = K.get(uk('hist'), {});
   stats = K.get(uk('stats'), {asked:0, right:0, grad:0});
-  cfg   = K.get(uk('cfg'), {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily', autoplay:0});
+  cfg   = K.get(uk('cfg'), {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily', autoplay:0, hideEn:0, hideZh:0});
+  if (cfg.hideEn === undefined) cfg.hideEn = 0;
+  if (cfg.hideZh === undefined) cfg.hideZh = 0;
   if (cfg.fresh === undefined) cfg.fresh = 0;         // 旧档案补默认: 允许重复
   if (cfg.autoplay === undefined) cfg.autoplay = 0;   // 旧档案补默认: 不自动发音
   if (!cfg.bank) cfg.bank = 'daily';
@@ -518,6 +525,12 @@ function bankOf(i){ return BANK_DEF.find(b => i < b.hi) || BANK_DEF[BANK_DEF.len
 function bankDef(k){ return BANK_DEF.find(b => b.k === k) || BANK_DEF[0]; }
 function bankLo(b){ const d = bankDef(b); return d.k==='daily' ? segOf(cfg.scope)[0]-1 : d.lo; }  // 日常按词频段取词
 function bankHi(b){ const d = bankDef(b); return d.k==='daily' ? Math.min(segOf(cfg.scope)[1], DAILY_N) : d.hi; }
+function poolCount(){                                  // 当前词库/频段 - 不练本 = 剩余词量(用于答题页头部括号)
+  const lo = bankLo(cfg.bank), hi = bankHi(cfg.bank);
+  let n = 0;
+  for (let i = lo; i < hi; i++) if (!skip[W[i][0]]) n++;
+  return n;
+}
 function iLo(i){ return bankOf(i).lo; }                    // 词 i 所属词库区间(干扰项同库)
 function iHi(i){ return bankHi(bankOf(i).k); }
 function rankLbl(i, r){ const d = bankOf(i); return d.k==='daily' ? '词频第 '+r+' 名' : d.lbl+' #'+r; }
@@ -768,6 +781,7 @@ function startRound(customPool){
   roundStart = Date.now();
   $('qScope').textContent = (customPool ? '错题专练' :
       (cfg.bank==='daily' ? '词频 ' + segLbl(cfg.scope) : (BANKS[cfg.bank] || BANKS.daily)())
+      + ' (剩余 ' + poolCount() + ' 词)'
       + (reviewMode ? ' · 只练错题本+不熟本+毕业本'
          : freshMode ? ' · 只出新词'
          : '')) + ' · ' + ORDER_LBL[cfg.order] + ' · ' + user;
@@ -1153,6 +1167,13 @@ function renderBook(){
   $('tabSkip').textContent  = '不练本（'+Object.keys(skip).length+'）';
   $('tabMem').textContent   = '熟记本（'+Object.keys(mem).length+'）';
   $('tabClean').textContent = '全对词（'+Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w] && !mem[w] && !skip[w]).length+'）';
+  // 隐藏英文 / 隐藏中文 按钮高亮 + 文案
+  const hideEn = +cfg.hideEn || 0;
+  const hideZh = +cfg.hideZh || 0;
+  $('btnHideEn').className = 'btn ghost' + (hideEn ? ' on' : '');
+  $('btnHideZh').className = 'btn ghost' + (hideZh ? ' on' : '');
+  $('btnHideEn').textContent = hideEn ? '已隐藏英文 · 显示' : '隐藏英文';
+  $('btnHideZh').textContent = hideZh ? '已隐藏中文 · 显示' : '隐藏中文';
   const rows = bookRows();
   $('bookInfo').textContent = user + ' · ' + rows.length + ' 个词';
   $('bookList').innerHTML = rows.length ? rows.map(e => {
@@ -1164,9 +1185,11 @@ function renderBook(){
     else if (bookTab==='skip'){ badge = '<span class="c" style="background:var(--badbg);color:var(--bad)">🚫</span>'; sub = '加入 '+fmtT(e.k.t); }
     else if (bookTab==='mem'){ badge = '<span class="c mem">🎯熟记</span>'; sub = '连续答对 '+e.m.s+' 次 · '+fmtT(e.m.t)+' 记入'; }
     else { badge = '<span class="c ok">✓全对</span>'; sub = '答'+e.r.a+'次 · '+fmtT(e.r.t); }
+    const wHtml = hideEn ? '<span class="w" style="opacity:.35">???</span>' : '<span class="w">'+esc(w)+'</span>';
+    const tHtml = hideZh ? '<div class="t" style="opacity:.35">???</div>' : '<div class="t">'+esc(t)+'</div>';
     return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div><div class="wbody">'+
-      '<span class="w">'+esc(w)+'</span>'+(p?'<span class="p">/'+esc(p)+'/</span>':'')+
-      '<div class="t">'+esc(t)+'</div></div><div class="wn">'+badge+'<div class="d">'+sub+'</div>'+
+      wHtml+(p?'<span class="p">/'+esc(p)+'/</span>':'')+
+      tHtml+'</div><div class="wn">'+badge+'<div class="d">'+sub+'</div>'+
       (bookTab==='nb' ? '<span class="rm" data-w="'+esc(w)+'" onclick="nbDel(this.dataset.w)">✕ 移出</span>' :
        bookTab==='skip' ? '<span class="rm" data-w="'+esc(w)+'" onclick="skDel(this.dataset.w)">✕ 移出</span>' : '')+
       '</div></div>';
@@ -1175,11 +1198,11 @@ function renderBook(){
      bookTab==='nb'?'不熟本是空的——做题时点「⚠ 不熟」加入':
      bookTab==='skip'?'不练本是空的——做题时点「🚫 不练 · 我已牢记」加入':
      bookTab==='mem'?'熟记本是空的——同一个词连续答对 '+NEEDMEM+' 次会自动记入（中途答错清零）':'没有记录'))+'</div>';
-  $('btnDrill').textContent = bookTab==='err' ? '只练错题本（冲刺毕业）'
-    : bookTab==='grad' ? '复习毕业词'
-    : bookTab==='nb' ? '只练不熟本（过词冲刺）'
-    : bookTab==='skip' ? '恢复练不练本（重新加载）'
-    : bookTab==='mem' ? '只练熟记本（保持手感）' : '巩固练习全对词';
+  $('btnDrill').textContent = bookTab==='err' ? '练错题本'
+    : bookTab==='grad' ? '练毕业本'
+    : bookTab==='nb' ? '练不熟本'
+    : bookTab==='skip' ? '练不练本'
+    : bookTab==='mem' ? '练熟记本' : '练全对词';
 }
 function exportBook(){
   const rows = bookRows();
@@ -1279,9 +1302,29 @@ $('btnDrill').onclick = () => {
 };
 $('btnExport').onclick = exportBook;
 $('btnClear').onclick = () => {
-  if (!confirm('清空当前用户「'+user+'」的全部答题记录？此操作不可恢复。')) return;
-  rec = {}; err = {}; grad = {}; nb = {}; mem = {}; skip = {}; hist = {}; stats = {asked:0, right:0, grad:0};
+  const labels = {err:'错题本', grad:'毕业本', nb:'不熟本', skip:'不练本', mem:'熟记本', clean:'全对词'};
+  const target = labels[bookTab] || '当前本';
+  const rows = bookRows();
+  if (!rows.length) return;
+  if (!confirm('确认清空'+target+'的 '+rows.length+' 个词？此操作不可恢复。')) return;
+  if (bookTab === 'err') err = {};
+  else if (bookTab === 'grad') grad = {};
+  else if (bookTab === 'nb') nb = {};
+  else if (bookTab === 'skip') skip = {};
+  else if (bookTab === 'mem') mem = {};
+  else if (bookTab === 'clean'){
+    const seen = Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w] && !mem[w] && !skip[w]);
+    seen.forEach(w => delete rec[w]);
+  }
   saveAll(); renderBook(); renderHome();
+};
+$('btnHideEn').onclick = () => {
+  cfg.hideEn = (+cfg.hideEn || 0) ? 0 : 1;
+  K.set(uk('cfg'), cfg); renderBook();
+};
+$('btnHideZh').onclick = () => {
+  cfg.hideZh = (+cfg.hideZh || 0) ? 0 : 1;
+  K.set(uk('cfg'), cfg); renderBook();
 };
 
 /* ---------------- 启动 ---------------- */
@@ -1294,7 +1337,7 @@ $('btnClear').onclick = () => {
     rec = {};
     Object.entries(oldWrong).forEach(([w,v]) => rec[w] = {a: v.n||1, w: v.n||1, t: v.t||Date.now()});
     stats = K.get('hv.stats', null) || {asked:0, right:0};
-    cfg = K.get('hv.cfg', null) || {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily', autoplay:0};
+    cfg = K.get('hv.cfg', null) || {scope:1000, dir:'en2zh', phon:1, round:50, fresh:0, bank:'daily', autoplay:0, hideEn:0, hideZh:0};
     if (cfg.fresh === undefined) cfg.fresh = 0;
     if (cfg.autoplay === undefined) cfg.autoplay = 0;
     if (!cfg.bank) cfg.bank = 'daily';
