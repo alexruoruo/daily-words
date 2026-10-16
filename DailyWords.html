@@ -1380,17 +1380,24 @@ function submitSpellModal(){
     setTimeout(()=> $('spellModalIn').classList.remove('bad'), 1100);
   }
 }
-$('spellModalSubmit').onclick = submitSpellModal;
-$('spellModalClose').onclick = closeSpellModal;
-// 点遮罩关闭; ESC 也关闭
-$('spellModal').addEventListener('click', e => { if (e.target === $('spellModal')) closeSpellModal(); });
-document.addEventListener('keydown', e => {
-  if ($('spellModal').classList.contains('hide')) return;
-  if (e.key === 'Escape') { e.preventDefault(); closeSpellModal(); }
-});
-$('spellModalIn').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); submitSpellModal(); }
-});
+// #spellModal 在 script 之后才被解析, 这里挂事件必须等 DOM 就位
+function _initSpellModal(){
+  $('spellModalSubmit').onclick = submitSpellModal;
+  $('spellModalClose').onclick = closeSpellModal;
+  // 点遮罩关闭
+  $('spellModal').addEventListener('click', e => { if (e.target === $('spellModal')) closeSpellModal(); });
+  // ESC 也关闭
+  document.addEventListener('keydown', e => {
+    if ($('spellModal').classList.contains('hide')) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeSpellModal(); }
+  });
+  // 输入框内 Enter 等效于点拼写
+  $('spellModalIn').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submitSpellModal(); }
+  });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _initSpellModal);
+else _initSpellModal();
 // 回到顶部: 学习记录页下拉超过 300px 出现悬浮按钮
 window.addEventListener('scroll', syncTopBtn, {passive:true});
 $('btnTop').onclick = () => window.scrollTo({top:0, behavior:'smooth'});
