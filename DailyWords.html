@@ -1498,18 +1498,21 @@ function checkAll(){
     void wrap.offsetWidth;                            // restart animation
     wrap.classList.add('shake');
     setTimeout(() => wrap.classList.remove('shake'), 400);
-    // 拼对序列清零 (任何一次错都重置, 从 1 重新累加)
+    // 1~9 阶段中途输错累加不清零: 错就不 +1, 但也不扣回去
+    // 只有 streak 已 ≥10 (进入染绿区) 之后的错才回到 0 (推倒重来)
     cfg.spellStreak = cfg.spellStreak || {};
-    if (cfg.spellStreak[_spellW]) {
+    const _cur = cfg.spellStreak[_spellW] || 0;
+    if (_cur >= 10) {
       delete cfg.spellStreak[_spellW];
       K.set(uk('cfg'), cfg);
+      const _rowW = _spellBox && _spellBox.closest('.wrow');
+      const _btnW = _rowW && _rowW.querySelector('.wrank .spellBtn');
+      if (_btnW) {
+        _btnW.textContent = '拼';
+        _btnW.classList.remove('spellGreen');
+      }
     }
-    const _rowW = _spellBox && _spellBox.closest('.wrow');
-    const _btnW = _rowW && _rowW.querySelector('.wrank .spellBtn');
-    if (_btnW) {
-      _btnW.textContent = '拼';
-      _btnW.classList.remove('spellGreen');
-    }
+    // 否则保持 streak, 行内按钮文字/颜色全部不变, 下次拼对继续 +1
   }
 }
 // #spellModal 在 script 之后才被解析, 这里挂事件必须等 DOM 就位
