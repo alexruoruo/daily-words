@@ -361,6 +361,7 @@ input:focus{outline:none;border-color:var(--brand)}
         <li><b>出题顺序</b>可选「按顺序(词频)」「乱序」「按字母 A-Z」；按顺序与 A-Z 会记住上次练到的位置，下一轮接着往下背，练到末尾回到开头。</li>
         <li><b>每题加载时自动发音</b>开启后，每加载一个新题目都会自动用浏览器 TTS 朗读一次（每次 speak() 内部 cancel 上一段，无网络请求，资源消耗极低）。</li>
         <li><b>双击选项</b>可弹出大字号释义弹窗，方便看清长词意；单击仍是答题（双击判定窗口 300ms）。弹窗可点关闭、点遮罩或按 <kbd>ESC</kbd> 关闭。</li>
+        <li>答题页里<b>双击题目里的英文单词</b>，会弹出与学习记录行一样的拼写弹框；拼对连数与各本共用 <code>cfg.spellStreak</code>，达到 10 次后该词按钮染绿。</li>
         <li>「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。</li>
         <li>首页顶部 6 个「本」点击即可跳到对应的学习记录 tab；学习记录页可按「字母升序 / 词频顺序 / 加入时间」三种规则重新排序。</li>
       </ol>
@@ -956,7 +957,7 @@ function renderQ(){                                  // 渲染当前待答的题
   const e = err[w];
   const en2zh = cfg.dir==='en2zh';
   $('qCard').innerHTML = en2zh
-    ? '<div class="qword'+(nb[w]?' nb':'')+'">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>' : '')
+    ? '<div class="qword'+(nb[w]?' nb':'')+'" data-w="'+escA(w)+'" data-p="'+escA(p||'')+'" title="双击进入拼写">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>' : '')
     : '<div class="qtrans">'+esc(t)+'</div>';
   $('fb').textContent = '';
   $('qNum').textContent = '第 ' + (log.length+1) + ' 题 · ' +
@@ -1018,7 +1019,7 @@ function renderReview(){
   else tag = '<span style="color:var(--bad);font-weight:700">✗ 答错</span><div style="margin-top:4px">你选「'+esc(e.chosen)+'」 · 正确「'+esc(e.right)+'」</div>';
   $('opts').innerHTML = '';
   $('fb').textContent = '';
-  $('qCard').innerHTML = '<div class="qword'+(nb[w]?' nb':'')+'">'+esc(w)+'</div>' + (p?'<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>':'') +
+  $('qCard').innerHTML = '<div class="qword'+(nb[w]?' nb':'')+'" data-w="'+escA(w)+'" data-p="'+escA(p||'')+'" title="双击进入拼写">'+esc(w)+'</div>' + (p?'<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>':'') +
     '<div class="qtrans" style="margin-top:8px">'+esc(t)+'</div>' +
     '<div style="margin-top:10px;font-size:13px;color:var(--sub);text-align:left">'+tag+'</div>';
   const bb = document.createElement('button');        // 回顾页: 加入/移出不熟本
@@ -1409,21 +1410,43 @@ $('bookList').addEventListener('dblclick', e => {
   e.stopPropagation();                      // 避免触发父级可能的选中/双击全选
   pEl.classList.toggle('expanded');
 });
+// 答题页: 双击题目中的单词, 唤起同一个拼写弹框 (cfg.spellStreak 与各本共用)
+$('qCard').addEventListener('dblclick', e => {
+  const qw = e.target.closest('.qword');
+  if (!qw) return;
+  e.preventDefault();
+  e.stopPropagation();                      // 避免误触发选项区的双击释义
+  const w = qw.dataset.w;
+  if (!w) return;
+  const phon = qw.dataset.p || '';
+  openSpellModal(null, w, phon);
+});
 
 /* ---------- 拼写弹框 ---------- */
 let _spellBox = null, _spellW = '';
-function openSpellModal(box){
-  _spellBox = box;
-  _spellW = box.dataset.spellW || '';
-  const pEl = box.querySelector('.p');
+function openSpellModal(box, wArg, pArg){
+  // 双入口:
+  //   - 学习记录行: openSpellModal(box)   从行内 spellBox 取 w/音标
+  //   - 答题页/其它: openSpellModal(null, w, p)  直接传词与音标进来
+  let w = '', phon = '';
+  if (box){
+    w = box.dataset.spellW || '';
+    const pEl = box.querySelector('.p');
+    phon = pEl ? pEl.textContent : '';
+  } else {
+    w = wArg || '';
+    phon = pArg || '';
+  }
+  _spellBox = box || null;
+  _spellW = w;
   $('spellModalWord').textContent = '???';
-  $('spellModalPhon').textContent = pEl ? pEl.textContent : '';
+  $('spellModalPhon').textContent = phon;
   $('spellModalFb').innerHTML = '';
   // 动态建造下划线输入框, 每个字母一格 (含连字符/撇号/空格也算一格)
   const wrap = $('spellLetters');
   wrap.innerHTML = '';
   wrap.classList.remove('shake');
-  const letters = _spellW.split('');
+  const letters = (_spellW || '').split('');
   letters.forEach((_ch, i) => {
     const inp = document.createElement('input');
     inp.type = 'text';
@@ -1482,7 +1505,8 @@ function checkAll(){
     const _next = (cfg.spellStreak[_w] || 0) + 1;
     cfg.spellStreak[_w] = _next;
     K.set(uk('cfg'), cfg);
-    const _row = _spellBox.closest('.wrow');
+    // 学习记录行里有「拼」按钮可以实时更新; 答题页进来的, _spellBox 可能为 null, 只动 cfg
+    const _row = _spellBox && _spellBox.closest('.wrow');
     const _btn = _row && _row.querySelector('.wrank .spellBtn');
     if (_btn) {
       _btn.textContent = _next >= 10 ? '拼.X' : '拼.' + _next;
