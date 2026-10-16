@@ -148,8 +148,8 @@ input:focus{outline:none;border-color:var(--brand)}
 }
 .wrank .spellBtn:hover{opacity:.88}
 .wrank .spellBtn:active{transform:scale(.96)}
-/* 拼对后该行的「拼」按钮自动隐藏 (主路径); JS 兜底兼容老浏览器 */
-.wrow:has(.spellBox.ok) .wrank .spellBtn{display:none}
+/* 连对 10 次以上「拼」按钮染绿 */
+.wrank .spellBtn.spellGreen{background:var(--ok)}
 .wbody{flex:1;min-width:0}
 .wbody .w{font-weight:700;font-size:16px;color:var(--brand)}
 .wbody .p{font-size:12px;color:#98a2ae;margin-left:6px}
@@ -1278,8 +1278,14 @@ function renderBook(){
         '</div>'
       : '<span class="w">'+esc(w)+'</span>';
     const tHtml = hideZh ? '<div class="t rv" data-rv="'+escA(t)+'">???</div>' : '<div class="t">'+esc(t)+'</div>';
-    // 「拼」按钮挪到 .wrank 列内 (#词频下方), 与左侧对齐, 方便拇指点击
-    const spellBtnHtml = hideEn ? '<button type="button" class="spellBtn" data-w="'+escA(w)+'">拼</button>' : '';
+    // 「拼」按钮挪到 .wrank 列内 (#词频下方), 顺便在该词连对 1~9 次时显示「拼.N」, ≥10 染绿改「拼.X」
+    cfg.spellStreak = cfg.spellStreak || {};
+    const _streak = cfg.spellStreak[w] || 0;
+    let _btnLabel = '拼';
+    if (_streak >= 10) _btnLabel = '拼.X';
+    else if (_streak >= 1) _btnLabel = '拼.' + _streak;
+    const _btnCls  = _streak >= 10 ? 'spellBtn spellGreen' : 'spellBtn';
+    const spellBtnHtml = hideEn ? '<button type="button" class="'+_btnCls+'" data-w="'+escA(w)+'">'+_btnLabel+'</button>' : '';
     return '<div class="wrow"><div class="wrank">'+
       (bankBadge(e.i) || '#'+rk)+
       spellBtnHtml+
@@ -1470,15 +1476,21 @@ function checkAll(){
     inputs.forEach(i => { i.classList.remove('bad'); i.classList.add('good'); });
     $('spellModalFb').innerHTML = '<span class="ok">🎉 正确！</span>';
     if (_spellBox) _spellBox.classList.add('ok');
-    // 同步把该行的「拼」按钮也隐藏 (CSS :has() 的 JS 兜底)
-    if (_spellBox) {
-      const row = _spellBox.closest('.wrow');
-      const btn = row && row.querySelector('.wrank .spellBtn');
-      if (btn) btn.style.display = 'none';
+    // 拼对次数 +1, 持久化, 同步更新行内的「拼.N / 拼.X」按钮
+    cfg.spellStreak = cfg.spellStreak || {};
+    const _w = _spellW;
+    const _next = (cfg.spellStreak[_w] || 0) + 1;
+    cfg.spellStreak[_w] = _next;
+    K.set(uk('cfg'), cfg);
+    const _row = _spellBox.closest('.wrow');
+    const _btn = _row && _row.querySelector('.wrank .spellBtn');
+    if (_btn) {
+      _btn.textContent = _next >= 10 ? '拼.X' : '拼.' + _next;
+      if (_next >= 10) _btn.classList.add('spellGreen');
     }
     setTimeout(() => closeSpellModal(), 900);
   } else {
-    // 错了: 标红, 抖动一次, 红色短提示, 用户继续编辑任意字母, 改完再次自动判
+    // 错了: 标红, 抖动一次, 红色短提示, 拼对次数清零, 同步行内按钮还原
     inputs.forEach(i => { i.classList.remove('good'); i.classList.add('bad'); });
     $('spellModalFb').innerHTML = '<span class="bad">不对, 再调整下字母</span>';
     const wrap = $('spellLetters');
@@ -1486,6 +1498,18 @@ function checkAll(){
     void wrap.offsetWidth;                            // restart animation
     wrap.classList.add('shake');
     setTimeout(() => wrap.classList.remove('shake'), 400);
+    // 拼对序列清零 (任何一次错都重置, 从 1 重新累加)
+    cfg.spellStreak = cfg.spellStreak || {};
+    if (cfg.spellStreak[_spellW]) {
+      delete cfg.spellStreak[_spellW];
+      K.set(uk('cfg'), cfg);
+    }
+    const _rowW = _spellBox && _spellBox.closest('.wrow');
+    const _btnW = _rowW && _rowW.querySelector('.wrank .spellBtn');
+    if (_btnW) {
+      _btnW.textContent = '拼';
+      _btnW.classList.remove('spellGreen');
+    }
   }
 }
 // #spellModal 在 script 之后才被解析, 这里挂事件必须等 DOM 就位
