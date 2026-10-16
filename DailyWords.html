@@ -210,7 +210,7 @@ input:focus{outline:none;border-color:var(--brand)}
 /* 拼写通过后该行的「拼」按钮也隐藏 */
 .wrow:has(.spellBox.ok) .wnTop .spellBtn{display:none}
 /* 拼写弹框: 紧凑 + 每个字母一个下划线输入框 */
-.optmodal-card.compact{padding:18px 18px 16px;max-width:360px}
+.optmodal-card.compact{padding:18px 18px 16px;max-width:360px;position:relative}
 .spellLetters{display:flex;justify-content:center;gap:5px;flex-wrap:wrap;margin:6px 0 4px}
 .spellLetters input{
   width:24px;height:28px;text-align:center;
@@ -229,6 +229,19 @@ input:focus{outline:none;border-color:var(--brand)}
 .spellModalFb{min-height:18px;margin-top:6px;font-size:13px;font-weight:700;text-align:center}
 .spellModalFb .ok{color:var(--ok);background:var(--okbg);padding:6px 12px;border-radius:8px;display:inline-block}
 .spellModalFb .bad{color:var(--bad);background:var(--badbg);padding:5px 10px;border-radius:8px;display:inline-block;font-size:12px}
+/* 弹框右上角关闭叉 */
+.spellClose{
+  position:absolute;top:6px;right:8px;
+  width:26px;height:26px;border:none;background:transparent;
+  color:var(--sub);font-size:22px;line-height:1;
+  cursor:pointer;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:"Segoe UI",system-ui,sans-serif;font-weight:300;
+  transition:background .15s,color .15s,transform .1s;
+  padding:0;
+}
+.spellClose:hover{background:var(--chip);color:var(--ink)}
+.spellClose:active{transform:scale(.92)}
 /* 回到顶部悬浮按钮 */
 #btnTop{position:fixed;bottom:22px;right:max(16px,calc(50% - 262px));width:44px;height:44px;border-radius:50%;
   border:none;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;font-size:19px;line-height:1;
@@ -1587,7 +1600,8 @@ try {
 <!-- 拼写弹框: 点「拼写 ›」按钮唤起, 一字一格下划线, 输完最后一字自动判定 -->
 <div id="spellModal" class="optmodal hide">
   <div class="optmodal-card compact" onclick="event.stopPropagation()">
-    <div style="font-size:12px;color:var(--sub);margin-bottom:4px">请拼写下面的英文单词</div>
+    <button type="button" class="spellClose" aria-label="关闭" onclick="closeSpellModal()">×</button>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:4px;padding-right:22px">请拼写下面的英文单词</div>
     <div class="optmodal-word" id="spellModalWord" style="font-size:22px;margin-bottom:2px">???</div>
     <div class="optmodal-phon" id="spellModalPhon" style="font-size:13px;margin-bottom:8px"></div>
     <div class="spellLetters" id="spellLetters"></div>
