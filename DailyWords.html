@@ -180,13 +180,11 @@ input:focus{outline:none;border-color:var(--brand)}
 /* 英文隐藏时的拼写挑战: 行内只显示 ???/音标/🔊/拼写按钮, 点拼写后弹框 */
 .spellBox{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0;font-size:12px}
 .spellMask{font-weight:700;font-size:15px;color:var(--brand);background:var(--chip);padding:2px 9px;border-radius:6px;letter-spacing:1px;font-family:"Segoe UI",system-ui,sans-serif}
-.spellBox .spellTrigger{padding:3px 11px;border:none;border-radius:999px;background:var(--brand);color:#fff;font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition:opacity .15s,transform .1s;white-space:nowrap}
-.spellBox .spellTrigger:hover{opacity:.88}
-.spellBox .spellTrigger:active{transform:scale(.96)}
+/* (旧 .spellBox .spellTrigger 规则已删除 —— 拼字按钮挪到 .wnTop 行) */
 .spellBox .spellSpk{display:inline-block;cursor:pointer;font-size:13px;opacity:.7;padding:3px 7px;border-radius:8px;background:var(--chip);user-select:none;transition:opacity .15s,background .15s}
 .spellBox .spellSpk:hover{opacity:1;background:var(--line)}
 .spellBox .spellAns{display:none}
-.spellBox.ok .spellMask,.spellBox.ok .spellTrigger{display:none}
+.spellBox.ok .spellMask{display:none}
 .spellBox.ok .spellAns{display:inline-flex;align-items:center;gap:6px}
 .spellBox.ok .spellAns .w{font-size:18px}
 .spellBox .p{
@@ -199,6 +197,18 @@ input:focus{outline:none;border-color:var(--brand)}
 .spellBox .p.expanded{
   max-width:none;background:var(--chip);padding:1px 7px;cursor:default;
 }
+/* 「拼」按钮移到最右侧 .wn 顶行, 与徽章对齐 */
+.wnTop{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.wnTop .spellBtn{
+  padding:3px 9px;font-size:13px;font-weight:700;
+  border-radius:99px;background:var(--brand);color:#fff;
+  border:none;cursor:pointer;user-select:none;white-space:nowrap;
+  transition:opacity .15s,transform .1s;line-height:1.2;
+}
+.wnTop .spellBtn:hover{opacity:.88}
+.wnTop .spellBtn:active{transform:scale(.96)}
+/* 拼写通过后该行的「拼」按钮也隐藏 */
+.wrow:has(.spellBox.ok) .wnTop .spellBtn{display:none}
 /* 拼写弹框: 紧凑 + 每个字母一个下划线输入框 */
 .optmodal-card.compact{padding:18px 18px 16px;max-width:360px}
 .spellLetters{display:flex;justify-content:center;gap:5px;flex-wrap:wrap;margin:6px 0 4px}
@@ -1241,20 +1251,23 @@ function renderBook(){
     else if (bookTab==='skip'){ badge = '<span class="c" style="background:var(--badbg);color:var(--bad)">🚫</span>'; sub = '加入 '+fmtT(e.k.t); }
     else if (bookTab==='mem'){ badge = '<span class="c mem">🎯熟记</span>'; sub = '连续答对 '+e.m.s+' 次 · '+fmtT(e.m.t)+' 记入'; }
     else { badge = '<span class="c ok">✓全对</span>'; sub = '答'+e.r.a+'次 · '+fmtT(e.r.t); }
-    // 隐藏英文时: ??? 占位 + 拼字按钮 -> 点击打开拼写弹框, 拼对后该行显出真实英文
+    // 隐藏英文时: ??? 占位 (「拼」按钮单独放在最右 .wnTop 行内, 与徽章同排)
     const wHtml = hideEn
       ? '<div class="spellBox" data-spell-w="'+escA(w)+'">'+
           '<span class="spellMask">???</span>'+
           '<span class="spellAns"><span class="w">'+esc(w)+'</span></span>'+
           (p?'<span class="p" title="双击展开完整音标">/'+esc(p)+'/</span>':'')+
           '<span class="spellSpk" data-w="'+escA(w)+'" title="点击发音">🔊</span>'+
-          '<button type="button" class="spellTrigger">拼字</button>'+
         '</div>'
       : '<span class="w">'+esc(w)+'</span>';
     const tHtml = hideZh ? '<div class="t rv" data-rv="'+escA(t)+'">???</div>' : '<div class="t">'+esc(t)+'</div>';
+    // 「拼」按钮放在 .wnTop 行 (与徽章同排, 位于徽章左侧)
+    const spellBtnHtml = hideEn ? '<button type="button" class="spellBtn" data-w="'+escA(w)+'">拼</button>' : '';
     return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div><div class="wbody">'+
       wHtml+((!hideEn && p)?'<span class="p">/'+esc(p)+'/</span>':'')+
-      tHtml+'</div><div class="wn">'+badge+'<div class="d">'+sub+'</div>'+
+      tHtml+'</div><div class="wn">'+
+      '<div class="wnTop">'+spellBtnHtml+badge+'</div>'+
+      '<div class="d">'+sub+'</div>'+
       (bookTab==='nb' ? '<span class="rm" data-w="'+esc(w)+'" onclick="nbDel(this.dataset.w)">✕ 移出</span>' :
        bookTab==='skip' ? '<span class="rm" data-w="'+esc(w)+'" onclick="skDel(this.dataset.w)">✕ 移出</span>' : '')+
       '</div></div>';
@@ -1345,12 +1358,13 @@ $('bookList').addEventListener('click', e => {
   const sp = e.target.closest('.spellSpk');
   if (sp && sp.dataset.w) { e.stopPropagation(); e.preventDefault(); speak(sp.dataset.w); return; }
 
-  // 2. 英文隐藏: 「拼写 ›」按钮 —— 打开拼写弹框
-  const trig = e.target.closest('.spellTrigger');
+  // 2. 英文隐藏: 「拼」按钮 —— 打开拼写弹框 (按钮现在在 .wnTop 里, 同一行)
+  const trig = e.target.closest('.wn .spellBtn');
   if (trig) {
-    const box = trig.closest('.spellBox');
-    if (!box) return;
-    openSpellModal(box);
+    const row = trig.closest('.wrow');
+    if (!row) return;
+    const box = row.querySelector('.spellBox');
+    if (box) openSpellModal(box);
     return;
   }
 
@@ -1437,6 +1451,12 @@ function checkAll(){
     inputs.forEach(i => { i.classList.remove('bad'); i.classList.add('good'); });
     $('spellModalFb').innerHTML = '<span class="ok">🎉 正确！</span>';
     if (_spellBox) _spellBox.classList.add('ok');
+    // 同步把该行的「拼」按钮也隐藏 (CSS :has() 的 JS 兜底)
+    if (_spellBox) {
+      const row = _spellBox.closest('.wrow');
+      const btn = row && row.querySelector('.wn .spellBtn');
+      if (btn) btn.style.display = 'none';
+    }
     setTimeout(() => closeSpellModal(), 900);
   } else {
     // 错了: 标红, 抖动一次, 红色短提示, 用户继续编辑任意字母, 改完再次自动判
