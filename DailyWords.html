@@ -177,6 +177,25 @@ input:focus{outline:none;border-color:var(--brand)}
 /* 隐藏词(???) 点击显示 */
 .rv{opacity:.35;cursor:pointer}
 .rv:hover{opacity:.6}
+/* 英文隐藏时的拼写挑战:音标后边输入英文,正确才显示 */
+.spellBox{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;margin:2px 0 2px;font-size:13px}
+.spellMask{font-weight:700;font-size:16px;color:var(--brand);background:var(--chip);padding:2px 12px;border-radius:7px;letter-spacing:1px;font-family:"Segoe UI",system-ui,sans-serif}
+.spellBox .spellIn{width:170px;padding:7px 11px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);font-size:14px;font-family:"Segoe UI",system-ui,sans-serif;letter-spacing:1px}
+.spellBox .spellIn:focus{outline:none;border-color:var(--brand)}
+.spellBox .spellIn.bad{border-color:var(--bad);background:var(--badbg);animation:spellShake .35s}
+@keyframes spellShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
+.spellBox .spellBtn{padding:7px 14px;border:none;border-radius:9px;background:var(--brand);color:#fff;font-size:13px;font-weight:600;cursor:pointer;user-select:none;transition:opacity .15s}
+.spellBox .spellBtn:hover{opacity:.88}
+.spellBox .spellBtn:active{transform:scale(.96)}
+.spellBox .spellSpk{display:inline-block;cursor:pointer;font-size:14px;opacity:.7;padding:4px 7px;border-radius:8px;background:var(--chip);user-select:none;transition:opacity .15s,background .15s}
+.spellBox .spellSpk:hover{opacity:1;background:var(--line)}
+.spellBox .spellAns{display:none}
+.spellBox .spellErr{display:none;font-size:12px;color:var(--bad);background:var(--badbg);padding:3px 11px;border-radius:99px;font-weight:700}
+.spellBox.err .spellErr{display:inline-block}
+.spellBox.ok .spellMask,.spellBox.ok .spellIn,.spellBox.ok .spellBtn{display:none}
+.spellBox.ok .spellAns{display:inline-flex;align-items:center;gap:6px}
+.spellBox.ok .spellAns .w{font-size:18px}
+.spellBox .p{margin-left:0}
 /* 回到顶部悬浮按钮 */
 #btnTop{position:fixed;bottom:22px;right:max(16px,calc(50% - 262px));width:44px;height:44px;border-radius:50%;
   border:none;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;font-size:19px;line-height:1;
@@ -1199,10 +1218,21 @@ function renderBook(){
     else if (bookTab==='skip'){ badge = '<span class="c" style="background:var(--badbg);color:var(--bad)">🚫</span>'; sub = '加入 '+fmtT(e.k.t); }
     else if (bookTab==='mem'){ badge = '<span class="c mem">🎯熟记</span>'; sub = '连续答对 '+e.m.s+' 次 · '+fmtT(e.m.t)+' 记入'; }
     else { badge = '<span class="c ok">✓全对</span>'; sub = '答'+e.r.a+'次 · '+fmtT(e.r.t); }
-    const wHtml = hideEn ? '<span class="w rv" data-rv="'+escA(w)+'">???</span>' : '<span class="w">'+esc(w)+'</span>';
+    // 隐藏英文时: ??? + 拼写输入框 + 拼写按钮, 拼对才显示英文, 拼错强制重试
+    const wHtml = hideEn
+      ? '<div class="spellBox" data-spell-w="'+escA(w)+'">'+
+          '<span class="spellMask">???</span>'+
+          '<span class="spellAns"><span class="w">'+esc(w)+'</span></span>'+
+          (p?'<span class="p">/'+esc(p)+'/</span>':'')+
+          '<span class="spellSpk" data-w="'+escA(w)+'" title="点击发音">🔊</span>'+
+          '<input type="text" class="spellIn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="请拼写这个英文">'+
+          '<button type="button" class="spellBtn spellSubmit">拼写</button>'+
+          '<span class="spellErr"></span>'+
+        '</div>'
+      : '<span class="w">'+esc(w)+'</span>';
     const tHtml = hideZh ? '<div class="t rv" data-rv="'+escA(t)+'">???</div>' : '<div class="t">'+esc(t)+'</div>';
     return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div><div class="wbody">'+
-      wHtml+(p?'<span class="p">/'+esc(p)+'/</span>':'')+
+      wHtml+((!hideEn && p)?'<span class="p">/'+esc(p)+'/</span>':'')+
       tHtml+'</div><div class="wn">'+badge+'<div class="d">'+sub+'</div>'+
       (bookTab==='nb' ? '<span class="rm" data-w="'+esc(w)+'" onclick="nbDel(this.dataset.w)">✕ 移出</span>' :
        bookTab==='skip' ? '<span class="rm" data-w="'+esc(w)+'" onclick="skDel(this.dataset.w)">✕ 移出</span>' : '')+
@@ -1290,10 +1320,55 @@ $('tabClean').onclick = () => { bookTab='clean'; renderBook(); };
 $('bookSearch').oninput = renderBook;
 // 学习记录: 点击 ??? 显示被隐藏的英文/中文(只对当前视图生效, 切换/重渲后恢复隐藏)
 $('bookList').addEventListener('click', e => {
+  // 1. 拼写箱内的 🔊 发音按钮
+  const sp = e.target.closest('.spellSpk');
+  if (sp && sp.dataset.w) { e.stopPropagation(); e.preventDefault(); speak(sp.dataset.w); return; }
+
+  // 2. 英文隐藏: 拼写提交按钮 —— 拼对才显示英文, 拼错强制重试
+  const btn = e.target.closest('.spellSubmit');
+  if (btn) {
+    const box = btn.closest('.spellBox');
+    if (!box) return;
+    const w = box.dataset.spellW || '';
+    const inp = box.querySelector('.spellIn');
+    const errEl = box.querySelector('.spellErr');
+    const norm = s => (s||'').trim().toLowerCase().replace(/\s+/g,' ');
+    const got = norm(inp.value);
+    const want = norm(w);
+    if (got && got === want) {
+      box.classList.add('ok');
+      box.classList.remove('err');
+      if (errEl) errEl.textContent = '';
+      inp.value = '';
+    } else {
+      box.classList.add('err');
+      box.classList.remove('ok');
+      if (errEl) errEl.textContent = got ? '拼写错误，请重试' : '请输入拼写';
+      inp.classList.add('bad');
+      inp.value = '';
+      // 自动尝试聚焦回去; 清除抖动的 bad 样式
+      setTimeout(() => { try { inp.focus({preventScroll:true}); } catch(_){ inp.focus(); } }, 30);
+      setTimeout(() => inp.classList.remove('bad'), 1100);
+    }
+    return;
+  }
+
+  // 3. 中文 ??? 点击揭示
   const rv = e.target.closest('.rv');
-  if (!rv || !rv.dataset.rv) return;
-  rv.textContent = rv.dataset.rv;
-  rv.classList.remove('rv');
+  if (rv && rv.dataset.rv) {
+    rv.textContent = rv.dataset.rv;
+    rv.classList.remove('rv');
+    return;
+  }
+});
+// 学习记录: 拼写输入框按 Enter 也提交
+$('bookList').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const inp = e.target.closest('.spellIn');
+  if (!inp) return;
+  e.preventDefault();
+  const btn = inp.parentElement && inp.parentElement.querySelector('.spellSubmit');
+  if (btn) btn.click();
 });
 // 回到顶部: 学习记录页下拉超过 300px 出现悬浮按钮
 window.addEventListener('scroll', syncTopBtn, {passive:true});
