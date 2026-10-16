@@ -952,6 +952,7 @@ function updateNav(){
 }
 function renderQ(){                                  // 渲染当前待答的题
   view = null;
+  _qwordEl = null; _qwordOrig = '';                // 题卡换了, 旧的隐藏引用丢掉
   const i = cur.i;
   const [w,p,r,t] = W[i];
   const e = err[w];
@@ -1011,6 +1012,7 @@ function nextWord(){
   if (view >= log.length) renderQ(); else renderReview();
 }
 function renderReview(){
+  _qwordEl = null; _qwordOrig = '';
   const e = log[view];
   const [w,p,,t] = W[e.i];
   let tag;
@@ -1411,7 +1413,10 @@ $('bookList').addEventListener('dblclick', e => {
   pEl.classList.toggle('expanded');
 });
 // 答题页: 双击题目中的单词, 唤起同一个拼写弹框 (cfg.spellStreak 与各本共用)
+// 顺带把题目卡片里那个原词替换成 ???, 关闭弹框时再还原 (防止拼写期间作弊)
 $('qCard').addEventListener('dblclick', e => {
+  // 弹框开着就别再处理 (避免覆盖原状态)
+  if (!$('spellModal').classList.contains('hide')) return;
   const qw = e.target.closest('.qword');
   if (!qw) return;
   e.preventDefault();
@@ -1419,11 +1424,15 @@ $('qCard').addEventListener('dblclick', e => {
   const w = qw.dataset.w;
   if (!w) return;
   const phon = qw.dataset.p || '';
+  _qwordEl = qw;
+  _qwordOrig = qw.textContent;
+  qw.textContent = '???';
   openSpellModal(null, w, phon);
 });
 
 /* ---------- 拼写弹框 ---------- */
 let _spellBox = null, _spellW = '';
+let _qwordEl = null, _qwordOrig = '';           // 答题页 dbl-click 期间被 ? 替掉的那个 qword 元素
 function openSpellModal(box, wArg, pArg){
   // 双入口:
   //   - 学习记录行: openSpellModal(box)   从行内 spellBox 取 w/音标
@@ -1468,6 +1477,11 @@ function closeSpellModal(){
   $('spellModal').classList.add('hide');
   $('spellLetters').innerHTML = '';
   _spellBox = null; _spellW = '';
+  // 还原题卡里被拼写弹框替掉的那个原词 (节点还在文档里才写, detached 跳过)
+  if (_qwordEl) {
+    if (_qwordEl.parentNode) _qwordEl.textContent = _qwordOrig || '';
+    _qwordEl = null; _qwordOrig = '';
+  }
 }
 function onLetterInput(inp){
   const ch = inp.value;
