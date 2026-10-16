@@ -178,28 +178,38 @@ input:focus{outline:none;border-color:var(--brand)}
 .rv{opacity:.35;cursor:pointer}
 .rv:hover{opacity:.6}
 /* 英文隐藏时的拼写挑战: 行内只显示 ???/音标/🔊/拼写按钮, 点拼写后弹框 */
-.spellBox{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;margin:2px 0 2px;font-size:13px}
-.spellMask{font-weight:700;font-size:16px;color:var(--brand);background:var(--chip);padding:2px 12px;border-radius:7px;letter-spacing:1px;font-family:"Segoe UI",system-ui,sans-serif}
-.spellBox .spellTrigger{padding:6px 14px;border:none;border-radius:999px;background:var(--brand);color:#fff;font-size:13px;font-weight:600;cursor:pointer;user-select:none;transition:opacity .15s,transform .1s}
+.spellBox{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0;font-size:12px}
+.spellMask{font-weight:700;font-size:15px;color:var(--brand);background:var(--chip);padding:2px 9px;border-radius:6px;letter-spacing:1px;font-family:"Segoe UI",system-ui,sans-serif}
+.spellBox .spellTrigger{padding:3px 11px;border:none;border-radius:999px;background:var(--brand);color:#fff;font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition:opacity .15s,transform .1s;white-space:nowrap}
 .spellBox .spellTrigger:hover{opacity:.88}
 .spellBox .spellTrigger:active{transform:scale(.96)}
-.spellBox .spellSpk{display:inline-block;cursor:pointer;font-size:14px;opacity:.7;padding:4px 7px;border-radius:8px;background:var(--chip);user-select:none;transition:opacity .15s,background .15s}
+.spellBox .spellSpk{display:inline-block;cursor:pointer;font-size:13px;opacity:.7;padding:3px 7px;border-radius:8px;background:var(--chip);user-select:none;transition:opacity .15s,background .15s}
 .spellBox .spellSpk:hover{opacity:1;background:var(--line)}
 .spellBox .spellAns{display:none}
 .spellBox.ok .spellMask,.spellBox.ok .spellTrigger{display:none}
 .spellBox.ok .spellAns{display:inline-flex;align-items:center;gap:6px}
 .spellBox.ok .spellAns .w{font-size:18px}
-.spellBox .p{margin-left:0}
-/* 拼写弹框输入 */
-#spellModalIn{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:18px;text-align:center;font-family:"Segoe UI",system-ui,sans-serif;letter-spacing:1.5px;margin:4px 0 0;box-sizing:border-box}
-#spellModalIn:focus{outline:none;border-color:var(--brand)}
-#spellModalIn.bad{border-color:var(--bad);background:var(--badbg);animation:spellShake .35s}
+.spellBox .p{margin-left:0;font-size:12px}
+/* 拼写弹框: 紧凑 + 每个字母一个下划线输入框 */
+.optmodal-card.compact{padding:18px 18px 16px;max-width:360px}
+.spellLetters{display:flex;justify-content:center;gap:5px;flex-wrap:wrap;margin:6px 0 4px}
+.spellLetters input{
+  width:24px;height:28px;text-align:center;
+  border:none;border-bottom:2px solid var(--line);
+  background:transparent;color:var(--ink);
+  font-size:17px;font-weight:700;line-height:1;
+  font-family:"Segoe UI",system-ui,sans-serif;letter-spacing:0;
+  outline:none;padding:0 0 2px;text-transform:lowercase;
+  caret-color:var(--brand);
+}
+.spellLetters input:focus{border-bottom-color:var(--brand)}
+.spellLetters input.good{border-bottom-color:var(--ok);color:var(--ok)}
+.spellLetters input.bad{border-bottom-color:var(--bad);color:var(--bad)}
+.spellLetters.shake{animation:spellShake .35s}
 @keyframes spellShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
-.spellModalFb{min-height:24px;margin-top:10px;font-size:14px;font-weight:700;text-align:center}
-.spellModalFb .ok{color:var(--ok);background:var(--okbg);padding:10px 14px;border-radius:10px;display:block}
-.spellModalFb .bad{color:var(--bad);background:var(--badbg);padding:8px 14px;border-radius:10px;display:block}
-.spellModalBtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
-.spellModalBtns .btn{margin:0;width:auto;padding:10px 22px;font-size:15px}
+.spellModalFb{min-height:18px;margin-top:6px;font-size:13px;font-weight:700;text-align:center}
+.spellModalFb .ok{color:var(--ok);background:var(--okbg);padding:6px 12px;border-radius:8px;display:inline-block}
+.spellModalFb .bad{color:var(--bad);background:var(--badbg);padding:5px 10px;border-radius:8px;display:inline-block;font-size:12px}
 /* 回到顶部悬浮按钮 */
 #btnTop{position:fixed;bottom:22px;right:max(16px,calc(50% - 262px));width:44px;height:44px;border-radius:50%;
   border:none;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;font-size:19px;line-height:1;
@@ -1352,48 +1362,84 @@ function openSpellModal(box){
   const pEl = box.querySelector('.p');
   $('spellModalWord').textContent = '???';
   $('spellModalPhon').textContent = pEl ? pEl.textContent : '';
-  $('spellModalIn').value = '';
-  $('spellModalIn').classList.remove('bad');
   $('spellModalFb').innerHTML = '';
+  // 动态建造下划线输入框, 每个字母一格 (含连字符/撇号/空格也算一格)
+  const wrap = $('spellLetters');
+  wrap.innerHTML = '';
+  wrap.classList.remove('shake');
+  const letters = _spellW.split('');
+  letters.forEach((_ch, i) => {
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.maxLength = 1;
+    inp.autocomplete = 'off';
+    inp.autocapitalize = 'off';
+    inp.spellcheck = false;
+    inp.dataset.idx = String(i);
+    inp.addEventListener('input', () => onLetterInput(inp));
+    inp.addEventListener('keydown', e => onLetterKey(e, inp));
+    inp.addEventListener('focus', () => { try { inp.select(); } catch(_){} });
+    wrap.appendChild(inp);
+  });
   $('spellModal').classList.remove('hide');
-  setTimeout(()=>{ try{ $('spellModalIn').focus({preventScroll:true}); }catch(_){ $('spellModalIn').focus(); } }, 60);
+  // 自动聚焦首格
+  setTimeout(() => { const f = wrap.firstChild; if (f) { try { f.focus({preventScroll:true}); } catch(_){ f.focus(); } } }, 60);
 }
 function closeSpellModal(){
   $('spellModal').classList.add('hide');
+  $('spellLetters').innerHTML = '';
   _spellBox = null; _spellW = '';
 }
-function submitSpellModal(){
-  if (!_spellBox) return;
-  const norm = s => (s||'').trim().toLowerCase().replace(/\s+/g,' ');
-  const got = norm($('spellModalIn').value);
-  const want = norm(_spellW);
-  const fb = $('spellModalFb');
-  if (got && got === want) {
-    _spellBox.classList.add('ok');              // 行内露出真实英文
-    $('spellModalWord').textContent = _spellW;  // 弹框里也揭晓
-    fb.innerHTML = '<span class="ok">🎉 恭喜！拼写正确</span>';
+function onLetterInput(inp){
+  const ch = inp.value;
+  if (ch && inp.nextElementSibling && inp.nextElementSibling.tagName === 'INPUT') {
+    try { inp.nextElementSibling.focus({preventScroll:true}); } catch(_){ inp.nextElementSibling.focus(); }
+  }
+  checkAll();
+}
+function onLetterKey(e, inp){
+  if (e.key === 'Backspace' && !inp.value && inp.previousElementSibling && inp.previousElementSibling.tagName === 'INPUT') {
+    inp.previousElementSibling.focus();
+    e.preventDefault();
+  }
+}
+function checkAll(){
+  const inputs = $('spellLetters').querySelectorAll('input');
+  if (!inputs.length) return;
+  const values = Array.from(inputs).map(i => i.value);
+  // 还没填满 → 仅清掉上一次的状态
+  if (values.some(v => !v)) {
+    inputs.forEach(i => i.classList.remove('good', 'bad'));
+    $('spellModalFb').innerHTML = '';
+    return;
+  }
+  const got = values.join('').toLowerCase();
+  const want = _spellW.toLowerCase();
+  if (got === want) {
+    // 全部正确: 行内收起拼写区, 弹出小绿色提示, 0.9s 后自动关闭
+    inputs.forEach(i => { i.classList.remove('bad'); i.classList.add('good'); });
+    $('spellModalFb').innerHTML = '<span class="ok">🎉 正确！</span>';
+    if (_spellBox) _spellBox.classList.add('ok');
+    setTimeout(() => closeSpellModal(), 900);
   } else {
-    fb.innerHTML = '<span class="bad">' + (got ? '拼写错误，请重试' : '请输入拼写') + '</span>';
-    $('spellModalIn').classList.add('bad');
-    $('spellModalIn').value = '';
-    setTimeout(()=>{ try{ $('spellModalIn').focus({preventScroll:true}); }catch(_){ $('spellModalIn').focus(); } }, 30);
-    setTimeout(()=> $('spellModalIn').classList.remove('bad'), 1100);
+    // 错了: 标红, 抖动一次, 红色短提示, 用户继续编辑任意字母, 改完再次自动判
+    inputs.forEach(i => { i.classList.remove('good'); i.classList.add('bad'); });
+    $('spellModalFb').innerHTML = '<span class="bad">不对, 再调整下字母</span>';
+    const wrap = $('spellLetters');
+    wrap.classList.remove('shake');
+    void wrap.offsetWidth;                            // restart animation
+    wrap.classList.add('shake');
+    setTimeout(() => wrap.classList.remove('shake'), 400);
   }
 }
 // #spellModal 在 script 之后才被解析, 这里挂事件必须等 DOM 就位
 function _initSpellModal(){
-  $('spellModalSubmit').onclick = submitSpellModal;
-  $('spellModalClose').onclick = closeSpellModal;
   // 点遮罩关闭
   $('spellModal').addEventListener('click', e => { if (e.target === $('spellModal')) closeSpellModal(); });
   // ESC 也关闭
   document.addEventListener('keydown', e => {
     if ($('spellModal').classList.contains('hide')) return;
     if (e.key === 'Escape') { e.preventDefault(); closeSpellModal(); }
-  });
-  // 输入框内 Enter 等效于点拼写
-  $('spellModalIn').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); submitSpellModal(); }
   });
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _initSpellModal);
@@ -1501,18 +1547,14 @@ try {
   </div>
 </div>
 
-<!-- 拼写弹框: 点「拼写 ›」按钮唤起 -->
+<!-- 拼写弹框: 点「拼写 ›」按钮唤起, 一字一格下划线, 输完最后一字自动判定 -->
 <div id="spellModal" class="optmodal hide">
-  <div class="optmodal-card" onclick="event.stopPropagation()">
-    <div style="font-size:13px;color:var(--sub);margin-bottom:4px">请拼写下面的英文单词</div>
-    <div class="optmodal-word" id="spellModalWord">???</div>
-    <div class="optmodal-phon" id="spellModalPhon"></div>
-    <input type="text" id="spellModalIn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在此输入英文">
+  <div class="optmodal-card compact" onclick="event.stopPropagation()">
+    <div style="font-size:12px;color:var(--sub);margin-bottom:4px">请拼写下面的英文单词</div>
+    <div class="optmodal-word" id="spellModalWord" style="font-size:22px;margin-bottom:2px">???</div>
+    <div class="optmodal-phon" id="spellModalPhon" style="font-size:13px;margin-bottom:8px"></div>
+    <div class="spellLetters" id="spellLetters"></div>
     <div class="spellModalFb" id="spellModalFb"></div>
-    <div class="spellModalBtns">
-      <button class="btn" id="spellModalSubmit" style="background:var(--brand)">拼写</button>
-      <button class="btn ghost" id="spellModalClose">取消</button>
-    </div>
   </div>
 </div>
 </body>
