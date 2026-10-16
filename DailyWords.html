@@ -945,7 +945,7 @@ function updateNav(){
   $('navPos').textContent = live ? '第 ' + (log.length+1) + ' 题' : '回顾 ' + (view+1) + '/' + log.length;
   const last = log.length ? W[log[log.length-1].i] : null;
   const lastW = last ? last[0] : '';
-  const lastT = last ? truncT(last[3], 20) : '';
+  const lastT = last ? truncT(last[3], 40) : '';
   $('btnPrev').innerHTML = '‹ 上一词' + (lastW ? ' <span class="prevWord">(' + esc(lastW) + (lastT ? ' · ' + esc(lastT) : '') + ')</span>' : '');
   $('btnNext').style.visibility = (live && !waitNext) ? 'hidden' : 'visible';
   $('btnPrev').style.opacity = live && !log.length ? '.35' : '1';
