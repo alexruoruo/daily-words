@@ -189,7 +189,16 @@ input:focus{outline:none;border-color:var(--brand)}
 .spellBox.ok .spellMask,.spellBox.ok .spellTrigger{display:none}
 .spellBox.ok .spellAns{display:inline-flex;align-items:center;gap:6px}
 .spellBox.ok .spellAns .w{font-size:18px}
-.spellBox .p{margin-left:0;font-size:12px}
+.spellBox .p{
+  margin-left:0;font-size:12px;
+  max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  display:inline-block;vertical-align:middle;cursor:pointer;
+  border-radius:4px;transition:background .15s,padding .15s,max-width .15s;
+}
+.spellBox .p:hover{background:rgba(127,127,127,.08)}
+.spellBox .p.expanded{
+  max-width:none;background:var(--chip);padding:1px 7px;cursor:default;
+}
 /* 拼写弹框: 紧凑 + 每个字母一个下划线输入框 */
 .optmodal-card.compact{padding:18px 18px 16px;max-width:360px}
 .spellLetters{display:flex;justify-content:center;gap:5px;flex-wrap:wrap;margin:6px 0 4px}
@@ -1232,14 +1241,14 @@ function renderBook(){
     else if (bookTab==='skip'){ badge = '<span class="c" style="background:var(--badbg);color:var(--bad)">🚫</span>'; sub = '加入 '+fmtT(e.k.t); }
     else if (bookTab==='mem'){ badge = '<span class="c mem">🎯熟记</span>'; sub = '连续答对 '+e.m.s+' 次 · '+fmtT(e.m.t)+' 记入'; }
     else { badge = '<span class="c ok">✓全对</span>'; sub = '答'+e.r.a+'次 · '+fmtT(e.r.t); }
-    // 隐藏英文时: ??? 占位 + 拼写按钮 -> 点击打开拼写弹框, 拼对后该行显出真实英文
+    // 隐藏英文时: ??? 占位 + 拼字按钮 -> 点击打开拼写弹框, 拼对后该行显出真实英文
     const wHtml = hideEn
       ? '<div class="spellBox" data-spell-w="'+escA(w)+'">'+
           '<span class="spellMask">???</span>'+
           '<span class="spellAns"><span class="w">'+esc(w)+'</span></span>'+
-          (p?'<span class="p">/'+esc(p)+'/</span>':'')+
+          (p?'<span class="p" title="双击展开完整音标">/'+esc(p)+'/</span>':'')+
           '<span class="spellSpk" data-w="'+escA(w)+'" title="点击发音">🔊</span>'+
-          '<button type="button" class="spellTrigger">拼写 ›</button>'+
+          '<button type="button" class="spellTrigger">拼字</button>'+
         '</div>'
       : '<span class="w">'+esc(w)+'</span>';
     const tHtml = hideZh ? '<div class="t rv" data-rv="'+escA(t)+'">???</div>' : '<div class="t">'+esc(t)+'</div>';
@@ -1352,6 +1361,14 @@ $('bookList').addEventListener('click', e => {
     rv.classList.remove('rv');
     return;
   }
+});
+// 学习记录: 双击音标展开被省略的完整音标; 再双击收回
+$('bookList').addEventListener('dblclick', e => {
+  const pEl = e.target.closest('.spellBox .p');
+  if (!pEl) return;
+  e.preventDefault();
+  e.stopPropagation();                      // 避免触发父级可能的选中/双击全选
+  pEl.classList.toggle('expanded');
 });
 
 /* ---------- 拼写弹框 ---------- */
