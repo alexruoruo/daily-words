@@ -166,9 +166,22 @@ input:focus{outline:none;border-color:var(--brand)}
 .opt.nb5.on{background:var(--nbink);border-color:var(--nbink);color:#fff}
 .opt.sk{border-color:var(--badbg);background:var(--badbg);color:var(--bad);font-weight:700;text-align:center}
 .opt.sk.on{background:var(--bad);border-color:var(--bad);color:#fff}
-.navrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.navrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px}
 .navbtn{font-size:13px;color:var(--sub);background:var(--chip);border-radius:999px;padding:6px 13px;cursor:pointer}
 .prevWord{color:var(--brand);font-weight:700;font-size:12px;margin-left:1px}
+/* 上一词按钮: 词+翻译超长时按钮内部横向滚动, 不挤爆行宽也不截断 */
+#btnPrev{
+  max-width:min(60vw,360px);
+  overflow-x:auto;overflow-y:hidden;
+  white-space:nowrap;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  scrollbar-color:var(--line) transparent;
+}
+#btnPrev::-webkit-scrollbar{height:4px}
+#btnPrev::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
+#btnPrev::-webkit-scrollbar-track{background:transparent}
+.prevWord{display:inline-block;white-space:nowrap}
 #navPos{font-size:12px;color:var(--sub)}
 .navnext{display:block;width:100%;margin-top:10px;padding:13px;border:1.5px solid var(--line);border-radius:12px;
   background:var(--card);color:var(--brand);font-weight:700;font-size:15px;cursor:pointer}
@@ -936,16 +949,12 @@ function skDel(w){ delete skip[w]; K.set(uk('skip'), skip); renderBook(); render
 function updBar(){
   $('bar').style.width = Math.min(100, Math.round(log.length/planned*100)) + '%';
 }
-function truncT(t, max){
-  if (!t) return '';
-  return t.length > max ? t.slice(0, max) + '…' : t;
-}
 function updateNav(){
   const live = view === null;
   $('navPos').textContent = live ? '第 ' + (log.length+1) + ' 题' : '回顾 ' + (view+1) + '/' + log.length;
   const last = log.length ? W[log[log.length-1].i] : null;
   const lastW = last ? last[0] : '';
-  const lastT = last ? truncT(last[3], 40) : '';
+  const lastT = last ? last[3] : '';                   // 不再截断, 让上一词按钮内部横滑到头
   $('btnPrev').innerHTML = '‹ 上一词' + (lastW ? ' <span class="prevWord">(' + esc(lastW) + (lastT ? ' · ' + esc(lastT) : '') + ')</span>' : '');
   $('btnNext').style.visibility = (live && !waitNext) ? 'hidden' : 'visible';
   $('btnPrev').style.opacity = live && !log.length ? '.35' : '1';
