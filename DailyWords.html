@@ -1025,9 +1025,9 @@ function renderQ(){                                  // 渲染当前待答的题
            '</button>';
   };
   $('qCard').innerHTML =
-      cornerHtml('syn','近','tl') +
+      cornerHtml('lk','像','tl') +
       cornerHtml('ant','反','tr') +
-      cornerHtml('lk','像','bl') +
+      cornerHtml('syn','近','bl') +
       cornerHtml('rel','联','br') +
     (en2zh
       ? '<div class="qword'+(nb[w]?' nb':'')+'" data-w="'+escA(w)+'" data-p="'+escA(p||'')+'" title="双击进入拼写">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>' : '')
