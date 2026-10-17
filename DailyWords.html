@@ -1680,6 +1680,30 @@ function _buildLenIdx(){
 }
 _buildLenIdx();
 
+// 「近」: 用各词「最主要的中文意思」建索引, 同主意思视为近义
+function _primaryMeaning(t){
+  if (!t) return '';
+  let s = t.replace(/^\s*[a-zA-Z]+\.?\s*/, '').trim();   // 剥词性标签
+  if (!s) return '';
+  const m = s.match(/^[^,;\/]+/);                       // 取第一段
+  const out = (m ? m[0] : '').replace(/^[(（]+|[)）]+$/g, '').trim();
+  return out.length >= 2 ? out : '';
+}
+function _allPrimaryChunks(t){
+  if (!t) return [];
+  const s = t.replace(/^\s*[a-zA-Z]+\.?\s*/, '').trim();
+  return s.split(/[,;\/]/).map(x => x.replace(/^[(（]+|[)）]+$/g, '').trim())
+                    .filter(x => x.length >= 2).slice(0, 5);
+}
+const _primaryIdx = {};
+function _buildPrimaryIdx(){
+  for (let i=0; i<W.length; i++){
+    const cs = _allPrimaryChunks(W[i][3] || '');
+    for (const m of cs){ (_primaryIdx[m] = _primaryIdx[m] || []).push(i); }
+  }
+}
+_buildPrimaryIdx();
+
 // 名称对应
 const REL_CAT = { syn:'近义词', ant:'反义词', rel:'词族 / 同根', lk:'相近形 (字母差 1 个)' };
 
@@ -1722,18 +1746,23 @@ function findRelated(word, max){
   return out;
 }
 
-// 「近」: 释义头 3 字符相同的弱相似 (n.网 vs n.网状…) 这只是低位近似, 不能保证是真同义
+// 「近」: 用「最主要的中文意思」(剥离词性, 取第一段) 反查 _primaryIdx;
+// 1 个近义词没有就试 2nd chunk, 再没有就「无」
 function findSynonyms(word, max){
   const idx = _wIdx(word);
   if (idx < 0) return [];
-  const head = (W[idx][3] || '').replace(/\s+/g,'').slice(0, 3);
-  if (head.length < 2) return [];
+  const myChunks = _allPrimaryChunks(W[idx][3] || '');
+  if (!myChunks.length) return [];
+  const seen = new Set([idx]);
   const out = [];
-  for (let i=0;i<W.length;i++){
-    if (out.length >= max) break;
-    if (i === idx) continue;
-    const t = (W[i][3] || '').replace(/\s+/g,'');
-    if (t.slice(0, 3) === head) out.push(W[i]);
+  for (const m of myChunks){
+    const list = _primaryIdx[m] || [];
+    for (const i of list){
+      if (seen.has(i)) continue;
+      seen.add(i);
+      out.push(W[i]);
+      if (out.length >= max) return out;
+    }
   }
   return out;
 }
