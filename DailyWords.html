@@ -87,6 +87,13 @@ header .cnt{font-size:12px;color:var(--sub)}
 .dcat b{text-decoration:underline dotted;text-underline-offset:3px}
 .dcat:active{opacity:.6}
 #dayList .w{cursor:pointer}
+.pager{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pgBtn{background:var(--chip);color:var(--ink);padding:6px 12px;border-radius:999px;cursor:pointer;user-select:none;font-size:13px;touch-action:manipulation}
+.pgBtn:active{transform:scale(.96)}
+.pgBtn.off{opacity:.35;pointer-events:none}
+.pgInfo{font-size:12px;color:var(--sub)}
+.pgJump{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:5px}
+#pgInput{width:58px;padding:6px 4px;border:1.5px solid var(--line);border-radius:8px;text-align:center;font-size:13px}
 .lbl{font-size:13px;color:var(--sub);margin:10px 0 6px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{padding:7px 14px;border-radius:999px;background:var(--chip);font-size:14px;cursor:pointer;user-select:none;touch-action:manipulation}
@@ -433,7 +440,7 @@ input:focus{outline:none;border-color:var(--brand)}
         <li>「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。</li>
         <li>首页顶部 6 个「本」点击即可跳到对应的学习记录 tab；学习记录页可按「字母升序 / 词频顺序 / 加入时间」三种规则重新排序。</li>
         <li>近 7 天柱状图或历史日历的当日明细里，<b>点分类数字</b>（所答/新错/毕业/标记不熟/记入熟记/标记不练）可打开当天的词单页：查看这些词的当前状态、点词发音、<b>专练这些词</b>或导出词单；旧记录只保存数量、没有词单。</li>
-        <li>首页<b>双击词库</b>（日常高频/计算机专业/外贸专用/四六级/托福雅思）可打开该词库的整本词本：浏览全部词、搜索、看每个词当前所在的本、专练或导出；专练时会自动跳过不练本的词。</li>
+        <li>首页<b>双击词库</b>（日常高频/计算机专业/外贸专用/四六级/托福雅思）可打开该词库的整本词本：浏览全部词、搜索、看每个词当前所在的本、专练或导出；专练时会自动跳过不练本的词。词单超过一页时底部出现<b>翻页条</b>（首页/上一页/下一页/末页 + 跳至第 N 页），「每页显示」可调 20/50/100/200 条（会记住选择）；专练与导出始终针对全部搜索结果，不受分页影响。</li>
         <li><b>每日夯实</b>：从昨天起往前回溯「新错 + 标记不熟」词单取词专练——前一天够 N 个就随机取 N 个，不够则全取并继续往前一天补，取够为止（最多回溯 90 天，跨天去重、跳过不练本）。词量 N 在「每日夯实词量」里配置。</li>
       </ol>
     </div>
@@ -522,7 +529,12 @@ input:focus{outline:none;border-color:var(--brand)}
     <button class="btn" id="btnDayDrill">练这些词</button>
     <button class="btn ghost" id="btnDayExport">导出词单</button>
   </div>
+  <div id="daySizeRow" style="display:none">
+    <div class="lbl">每页显示</div>
+    <div class="chips" id="daySizeChips"></div>
+  </div>
   <div class="card" id="dayList" style="margin-top:10px"></div>
+  <div class="pager" id="dayPager"></div>
 </div>
 
 <!-- 用户面板 -->
@@ -891,10 +903,13 @@ function dayCatChips(dk){                            // 明细里的分类 chips
 }
 let dayView = null;                                  // 当前查看的当日词单 {dk, cat}
 let bankView = null;                                 // 当前查看的词库词本 {bank}
+let listPage = 1, _listPages = 1;                    // 词单页分页: 当前页 / 总页数(渲染时刷新)
+const LIST_SIZES = [20, 50, 100, 200];               // 每页条数可选值(存 cfg.listSize, 默认100)
 function openDayBook(dk, cat){
   if (!DAY_CATS[cat]) return;
   dayView = {dk, cat}; bankView = null;
   $('daySearch').value = '';
+  listPage = 1;
   renderDayBook();
   show('daybook');
 }
@@ -902,6 +917,7 @@ function openBankBook(bank){                         // 词库词本: 首页双�
   if (!bankDef(bank)) return;
   bankView = {bank: bankDef(bank).k}; dayView = null;
   $('daySearch').value = '';
+  listPage = 1;
   renderDayBook();
   show('daybook');
 }
@@ -930,26 +946,53 @@ function dayWordState(w){                            // 该词现在所在的"�
   if (rec[w] && rec[w].w===0) return {b:'<span class="c ok">✓</span>', d:'当前全对'};
   return {b:'<span class="c" style="background:var(--chip);color:var(--sub)">—</span>', d:'暂无记录'};
 }
+function renderDaySizeChips(){                       // 每页条数 chips(不能用 mkChips: 它会连带 renderHome)
+  const box = $('daySizeChips'); box.innerHTML = '';
+  const cur = +cfg.listSize || 100;
+  LIST_SIZES.forEach(n => {
+    const c = document.createElement('div');
+    c.className = 'chip' + (cur===n ? ' on' : '');
+    c.textContent = n + ' 条/页';
+    c.onclick = () => { cfg.listSize = n; K.set(uk('cfg'), cfg); listPage = 1; renderDayBook(); };
+    box.appendChild(c);
+  });
+}
+function pagerHtml(pages){                            // 翻页条: 首/上/下/末 + 跳至第 N 页
+  const off1 = listPage <= 1 ? ' off' : '', offN = listPage >= pages ? ' off' : '';
+  return '<span class="pgBtn'+off1+'" data-pg="first">«</span>'+
+    '<span class="pgBtn'+off1+'" data-pg="prev">‹ 上一页</span>'+
+    '<span class="pgInfo">第 <b>'+listPage+'</b> / '+pages+' 页</span>'+
+    '<span class="pgBtn'+offN+'" data-pg="next">下一页 ›</span>'+
+    '<span class="pgBtn'+offN+'" data-pg="last">»</span>'+
+    '<span class="pgJump">跳至 <input type="number" id="pgInput" min="1" max="'+pages+'" value="'+listPage+'"> 页 '+
+    '<span class="pgBtn" data-pg="go">跳</span></span>';
+}
 function renderDayBook(){
   if (!dayView && !bankView) return;
-  const rows = wordListRows();
+  const all = wordListRows();                         // 搜索过滤后的全部行; 专练/导出始终用全量
+  const size = +cfg.listSize || 100;
+  const pages = Math.max(1, Math.ceil(all.length / size));
+  _listPages = pages;
+  if (listPage > pages) listPage = pages;
+  if (listPage < 1) listPage = 1;
+  const rows = all.slice((listPage-1)*size, listPage*size);   // 当前页切片
   let title, empty, drillTxt;
   if (bankView){
     const d = bankDef(bankView.bank);
     const total = d.hi - d.lo;
-    title = d.name + ' · ' + (rows.length === total ? rows.length + ' 个词' : '匹配 ' + rows.length + ' / ' + total) + ' · ' + user;
+    title = d.name + ' · ' + (all.length === total ? all.length + ' 个词' : '匹配 ' + all.length + ' / ' + total) + ' · ' + user;
     empty = '没有匹配的词';
-    drillTxt = rows.length ? '练这 ' + rows.length + ' 个词' : '练这个词库';
+    drillTxt = all.length ? '练这 ' + all.length + ' 个词' : '练这个词库';
   } else {
     const {dk, cat} = dayView;
     const meta = DAY_CATS[cat] || {lbl:'词单'};
-    title = dk + ' · ' + meta.lbl + ' · ' + rows.length + ' 个词 · ' + user;
+    title = dk + ' · ' + meta.lbl + ' · ' + all.length + ' 个词 · ' + user;
     empty = '这一天没有「'+meta.lbl+'」的词单记录<br>'+
       '<span style="font-size:12px;color:var(--sub)">'+(hist[dk] ? '旧记录只保存了数量, 词单从此功能上线后开始记录' : '当天没有此类操作')+'</span>';
-    drillTxt = rows.length ? '练这 '+rows.length+' 个词' : '练这些词';
+    drillTxt = all.length ? '练这 '+all.length+' 个词' : '练这些词';
   }
   $('dayBookInfo').textContent = title;
-  $('dayList').innerHTML = rows.length ? rows.map(e => {
+  $('dayList').innerHTML = all.length ? rows.map(e => {
     const [w,p,rk,t] = W[e.i];
     const st = dayWordState(w);
     return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div>'+
@@ -957,7 +1000,10 @@ function renderDayBook(){
       (p?'<span class="p">/'+esc(p)+'/</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
       '<div class="wn">'+st.b+'<div class="d">'+st.d+'</div></div></div>';
   }).join('') : '<div class="empty">'+empty+'</div>';
-  $('btnDayDrill').textContent = drillTxt;
+  const paged = pages > 1;                            // 一页装得下时不显示条数与翻页
+  $('daySizeRow').style.display = paged ? '' : 'none';
+  if (paged) renderDaySizeChips();
+  $('dayPager').innerHTML = paged ? pagerHtml(pages) : '';
 }
 ['dayDetail','calDetail'].forEach(id => $(id).addEventListener('click', e => {
   const t = e.target.closest('.dcat');
@@ -976,14 +1022,40 @@ $('bankChips').addEventListener('click', e => {
 let _daySearchTimer = null;
 $('daySearch').oninput = () => {                     // 大词库重渲开销大, 轻微防抖
   clearTimeout(_daySearchTimer);
-  _daySearchTimer = setTimeout(renderDayBook, 150);
+  _daySearchTimer = setTimeout(() => { listPage = 1; renderDayBook(); }, 150);
 };
+$('dayPager').addEventListener('click', e => {       // 翻页: 首/上/下/末/跳
+  const b = e.target.closest('[data-pg]');
+  if (!b) return;
+  const a = b.dataset.pg;
+  if (a === 'go'){
+    const v = parseInt($('pgInput').value, 10);
+    if (!(v >= 1 && v <= _listPages)) return;        // 越界跳页忽略
+    listPage = v;
+  }
+  else if (a === 'prev')  listPage = Math.max(1, listPage - 1);
+  else if (a === 'next')  listPage = Math.min(_listPages, listPage + 1);
+  else if (a === 'first') listPage = 1;
+  else if (a === 'last')  listPage = _listPages;
+  else return;
+  renderDayBook();
+  window.scrollTo(0, 0);
+});
+$('dayPager').addEventListener('keydown', e => {     // 跳页输入框内回车 = 点「跳」
+  if (e.key !== 'Enter' || e.target.id !== 'pgInput') return;
+  e.preventDefault();
+  const v = parseInt($('pgInput').value, 10);
+  if (!(v >= 1 && v <= _listPages)) return;
+  listPage = v;
+  renderDayBook();
+  window.scrollTo(0, 0);
+});
 $('dayList').addEventListener('click', e => {        // 点单词发音
   const w = e.target.closest('.w');
   if (w && w.dataset.w) speak(w.dataset.w);
 });
 $('btnDayBack').onclick  = () => show('home');       // 不重渲首页, 保留近7天/日历的展开状态
-$('btnDayDrill').onclick = () => {                   // 词单页专练: 当日词单 或 词库(排除不练词, 与常规出题一致)
+$('btnDayDrill').onclick = () => {                   // 词单页专练: 当日词单 或 词库(排除不练词, 与常规出题一致); 全量不受每轮题量截断
   let idxs = wordListRows().map(e => e.i);
   if (!idxs.length) return;
   let label;
@@ -994,7 +1066,7 @@ $('btnDayDrill').onclick = () => {                   // 词单页专练: 当日�
   } else if (dayView){
     label = dayView.dk + ' ' + (DAY_CATS[dayView.cat]||{lbl:''}).lbl + ' 专练';
   } else return;
-  startRound({ idxs, old: [], label });
+  startRound({ idxs, old: [], max: idxs.length, label });
 };
 $('btnDayExport').onclick = () => {                  // 导出词单: 当日 或 词库
   const rows = wordListRows();
