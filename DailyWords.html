@@ -89,7 +89,7 @@ header .cnt{font-size:12px;color:var(--sub)}
 #dayList .w{cursor:pointer}
 .lbl{font-size:13px;color:var(--sub);margin:10px 0 6px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{padding:7px 14px;border-radius:999px;background:var(--chip);font-size:14px;cursor:pointer;user-select:none}
+.chip{padding:7px 14px;border-radius:999px;background:var(--chip);font-size:14px;cursor:pointer;user-select:none;touch-action:manipulation}
 .chip.on{background:var(--chipon);color:#fff;font-weight:600}
 .btn{display:block;width:100%;padding:13px;border:none;border-radius:12px;font-size:16px;font-weight:700;
   background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;cursor:pointer;margin-top:12px}
@@ -963,9 +963,15 @@ function renderDayBook(){
   const t = e.target.closest('.dcat');
   if (t) openDayBook(t.dataset.dk, t.dataset.cat);
 }));
-$('bankChips').addEventListener('dblclick', e => {   // 双击词库 chip → 该词库整本词本
+let _chipTapT = 0, _chipTapV = null;                 // 词库 chip 双击自识别: 移动端双击会触发缩放手势, dblclick 不可靠
+$('bankChips').addEventListener('click', e => {
   const c = e.target.closest('.chip');
-  if (c && c.dataset.v) openBankBook(c.dataset.v);
+  if (!c || !c.dataset.v) return;
+  const now = Date.now();
+  if (_chipTapV === c.dataset.v && now - _chipTapT < 350){   // 350ms 内两次点同一词库 chip
+    _chipTapT = 0; _chipTapV = null;
+    openBankBook(c.dataset.v);
+  } else { _chipTapT = now; _chipTapV = c.dataset.v; }
 });
 let _daySearchTimer = null;
 $('daySearch').oninput = () => {                     // 大词库重渲开销大, 轻微防抖
