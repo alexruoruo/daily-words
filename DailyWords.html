@@ -180,6 +180,7 @@ input:focus{outline:none;border-color:var(--brand)}
 .opt.nb5.on{background:var(--nbink);border-color:var(--nbink);color:#fff}
 .opt.sk{border-color:var(--badbg);background:var(--badbg);color:var(--bad);font-weight:700;text-align:center}
 .opt.sk.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.opt.dk{border:1.5px dashed var(--nbink);background:var(--card);color:var(--nbink);font-weight:700;text-align:center}
 .navrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px}
 .navbtn{font-size:13px;color:var(--sub);background:var(--chip);border-radius:999px;padding:6px 13px;cursor:pointer}
 .prevWord{color:var(--brand);font-weight:700;font-size:12px;margin-left:1px}
@@ -429,6 +430,7 @@ input:focus{outline:none;border-color:var(--brand)}
       <ol>
         <li>答错的词自动进<b>错题本</b>，<b>答错后不自动跳题</b>——可细看这个词，点卡片下方「下一词 ›」再继续；<b>连续答对 5 次</b>自动毕业移出错题本，期间再答错则连对归零。</li>
         <li>做题时点「⚠ 不熟」把词记入<b>不熟本</b>（不自动跳下一词，需手动点「下一词 ›」）；回顾上一词时也可补记；连对 3 次自动移出不熟本。</li>
+        <li>点「<b>❔ 不认识」</b>同样把词记入<b>不熟本</b>，但<b>自动跳下一题</b>（不计答题数）——适合快速过词；与「⚠ 不熟」「🚫 不练」互斥，同库三选一。</li>
         <li>做题时点「🚫 不练 · 我已牢记」把词记入<b>不练本</b>（不自动跳下一词，需手动点「下一词 ›」）；该词以后不会再出现（包括错题本/不熟本/毕业本回退轮），除非在「学习记录 → 不练本」中手动移出。</li>
         <li>同一个词<b>连续答对 10 次</b>会记入<b>熟记本</b>（中途答错则连续次数清零，需重新累加；之后再答错则移出熟记本）；<b>连续答对 20 次</b>则自动记入<b>不练本</b>（同步清理错题本/不熟本/熟记本/毕业本，从此不再出现，除非手动移出）。</li>
         <li><b>词库</b>可在「日常高频」「计算机专业」(IT 术语)、「外贸专用」(函电/物流/结算/报关)、「四六级」(大纲词)、「托福雅思」(留学考试词)间切换，后四个词库均只收日常词库没有的词；错题本/不熟本/熟记本等记录各词库共用。</li>
@@ -1120,7 +1122,7 @@ $('btnHammer').onclick = () => {
 
 /* ---------------- 出题 ---------------- */
 let queue = [], asked = 0, right = 0, recent = [], cur = null, roundStart = 0, gradList = [], nbOut = [], memList = [], retries = {},
-    log = [], view = null, planned = 0, waitNext = false;
+    log = [], view = null, planned = 0, waitNext = false, _nextTimer = null;
 function buildPool(){
   const lo = bankLo(cfg.bank), hi = bankHi(cfg.bank);
   let idxs = [];
@@ -1212,7 +1214,8 @@ function setNB(w){
   if (!b) return;
   const on = !!nb[w];
   b.className = 'opt nb5' + (on ? ' on' : '');
-  b.textContent = on ? '⚠ 已在不熟本' : '⚠ 不熟 · 记入不熟本';
+  b.textContent = on ? '⚠ 已在不熟本' : '⚠ 不熟';
+  b.title = on ? '该词已在 不熟本' : '记入不熟本，留在本题细看（连对 ' + NEEDNB + ' 次自动移出）';
 }
 function nbSkip(){                                   // 记入不熟本(不自动跳下一词, 需手动点「下一词」)
   if (!cur) return;
@@ -1237,13 +1240,37 @@ function nbSkip(){                                   // 记入不熟本(不自�
   }
 }
 function nbDel(w){ delete nb[w]; K.set(uk('nb'), nb); renderBook(); renderHome(); }
+function dunnoSkip(){                                // 不认识: 记入不熟本并自动下一题(不计答题)
+  if (!cur || view !== null || cur.dunno) return;    // 回顾态/防双击重复记录
+  const w = W[cur.i][0];
+  if (!nb[w]){
+    nb[w] = {s:0, t:Date.now()};
+    if (skip[w]){ delete skip[w]; K.set(uk('skip'), skip); }  // 互斥: 同步移出不练本
+    const dk = dayKey();
+    hist[dk] = hist[dk] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
+    hist[dk].n++;
+    dayAddWord(dk, 'wn', w);                          // 当日标记不熟词单
+    K.set(uk('hist'), hist);
+  }
+  K.set(uk('nb'), nb);
+  cur.dunno = true;
+  setNB(w); setSK(w);                                 // 立即刷新两个互斥按钮文案
+  if (!cur.done){                                     // 未答: 记跳过(与「⚠ 不熟」一致, 不计答题数)
+    log.push({i: cur.i, skip: true});
+    updBar();
+  }
+  $('fb').innerHTML = '<span style="color:var(--nbink);font-weight:700">❔ 「'+esc(w)+'」已记入不熟本</span> · 自动下一题…';
+  clearTimeout(_nextTimer);                           // 若答题后的自动跳题还在排队, 防双跳
+  _nextTimer = setTimeout(next, 350);                 // 稍作停留显示反馈再跳
+}
 let skBtn = null;                                    // 第6个"不练"选项按钮
 function setSK(w){
   const b = skBtn;
   if (!b) return;
   const on = !!skip[w];
   b.className = 'opt sk' + (on ? ' on' : '');
-  b.textContent = on ? '🚫 已在不练本' : '🚫 不练 · 我已牢记';
+  b.textContent = on ? '🚫 已在不练本' : '🚫 不练';
+  b.title = on ? '该词已在 不练本' : '记入不练本，此后不再出现';
 }
 function skSkip(){                                   // 记入不练本(不自动跳下一词, 需手动点「下一词」)
   if (!cur) return;
@@ -1337,6 +1364,11 @@ function renderQ(){                                  // 渲染当前待答的题
     };
     box.appendChild(b);
   });
+  const b7 = document.createElement('button');       // 第4个特殊选项: 不认识, 记入不熟本并自动下一题
+  b7.className = 'opt dk';
+  b7.textContent = '❔ 不认识';
+  b7.title = '记入不熟本并自动下一题（不计答题）';
+  b7.onclick = dunnoSkip;
   const b5 = document.createElement('button');       // 第5个选项: 不熟, 记入不熟本
   b5.className = 'opt nb5';
   b5.onclick = nbSkip;
@@ -1346,6 +1378,7 @@ function renderQ(){                                  // 渲染当前待答的题
   skBtn = b6;
   const special = document.createElement('div');
   special.className = 'optrow';
+  special.appendChild(b7);
   special.appendChild(b5);
   special.appendChild(b6);
   box.appendChild(special);
@@ -1402,6 +1435,7 @@ function renderReview(){
   updateNav();
 }
 function next(){
+  clearTimeout(_nextTimer); _nextTimer = null;        // 手动/自动跳题统一在此清队, 防双跳
   waitNext = false;
   if(!queue.length){ return endRound(); }
   const i = queue.shift();
@@ -1533,7 +1567,7 @@ function answer(k){
   $('qScore').textContent = '本轮 ' + right + '/' + asked;
   $('fb').innerHTML = msg;
   updBar();
-  if (!waitNext) setTimeout(next, delay);            // 答错时等待手动「下一词」
+  if (!waitNext){ clearTimeout(_nextTimer); _nextTimer = setTimeout(next, delay); }   // 答错时等待手动「下一词」
 }
 function endRound(){
   const acc = asked ? Math.round(right/asked*100) : 0;
