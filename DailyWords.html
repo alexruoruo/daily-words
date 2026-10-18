@@ -430,6 +430,7 @@ input:focus{outline:none;border-color:var(--brand)}
         <li>「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。</li>
         <li>首页顶部 6 个「本」点击即可跳到对应的学习记录 tab；学习记录页可按「字母升序 / 词频顺序 / 加入时间」三种规则重新排序。</li>
         <li>近 7 天柱状图或历史日历的当日明细里，<b>点分类数字</b>（所答/新错/毕业/标记不熟/记入熟记/标记不练）可打开当天的词单页：查看这些词的当前状态、点词发音、<b>专练这些词</b>或导出词单；旧记录只保存数量、没有词单。</li>
+        <li>首页<b>双击词库</b>（日常高频/计算机专业/外贸专用/四六级/托福雅思）可打开该词库的整本词本：浏览全部词、搜索、看每个词当前所在的本、专练或导出；专练时会自动跳过不练本的词。</li>
       </ol>
     </div>
   </div>
@@ -512,7 +513,8 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="quit" id="btnDayBack">‹ 返回</div>
     <div style="font-size:13px;color:var(--sub)" id="dayBookInfo"></div>
   </div>
-  <div class="row">
+  <input type="search" id="daySearch" placeholder="搜索单词或释义…">
+  <div class="row" style="margin-top:8px">
     <button class="btn" id="btnDayDrill">练这些词</button>
     <button class="btn ghost" id="btnDayExport">导出词单</button>
   </div>
@@ -678,6 +680,8 @@ function mkChips(boxId, items, isOn, onPick){
     const c = document.createElement('div');
     c.className = 'chip' + (isOn(it.v) ? ' on' : '');
     c.textContent = it.t;
+    c.dataset.v = it.v;                                // 供容器级双击等事件识别 chip
+    if (it.tip) c.title = it.tip;
     c.onclick = () => { onPick(it.v); K.set(uk('cfg'), cfg); renderHome(); };
     box.appendChild(c);
   });
@@ -721,7 +725,7 @@ function renderHome(){
   $('stMem').textContent = Object.keys(mem).length;
   $('stSkip').textContent = Object.keys(skip).length;
   $('stClean').textContent = Object.keys(rec).filter(w => rec[w].w===0 && !grad[w] && !nb[w] && !mem[w] && !skip[w]).length;
-  mkChips('bankChips', BANK_DEF.map(b => ({v:b.k, t:b.chip})),
+  mkChips('bankChips', BANK_DEF.map(b => ({v:b.k, t:b.chip, tip:'单击切换 · 双击查看整本词库'})),
     v => cfg.bank===v, v => cfg.bank=v);
   const isCS = cfg.bank!=='daily';                     // 词频范围只对日常词库生效
   $('scopeLbl').style.display = isCS ? 'none' : '';
@@ -880,16 +884,36 @@ function dayCatChips(dk){                            // 明细里的分类 chips
   }).join(' · ');
 }
 let dayView = null;                                  // 当前查看的当日词单 {dk, cat}
+let bankView = null;                                 // 当前查看的词库词本 {bank}
 function openDayBook(dk, cat){
   if (!DAY_CATS[cat]) return;
-  dayView = {dk, cat};
+  dayView = {dk, cat}; bankView = null;
+  $('daySearch').value = '';
   renderDayBook();
   show('daybook');
 }
-function dayRows(){                                  // 当日词单 → W 行(词已不在词库的丢弃)
-  if (!dayView) return [];
-  return ((hist[dayView.dk] || {})[dayView.cat] || [])
-    .map(w => { const i = W.findIndex(x => x[0]===w); return i<0?null:{i,w}; }).filter(Boolean);
+function openBankBook(bank){                         // 词库词本: 首页双击词库 chip 进入
+  if (!bankDef(bank)) return;
+  bankView = {bank: bankDef(bank).k}; dayView = null;
+  $('daySearch').value = '';
+  renderDayBook();
+  show('daybook');
+}
+function wordListSource(){                           // 词单页原始行(未过搜索): 当日分类 或 词库整本(含不练词)
+  if (bankView){
+    const d = bankDef(bankView.bank), rows = [];
+    for (let i = d.lo; i < d.hi; i++) rows.push({i, w: W[i][0]});
+    return rows;
+  }
+  if (dayView)
+    return ((hist[dayView.dk] || {})[dayView.cat] || [])
+      .map(w => { const i = W.findIndex(x => x[0]===w); return i<0?null:{i,w}; }).filter(Boolean);
+  return [];
+}
+function wordListRows(){                             // 搜索过滤后的行
+  const kw = $('daySearch').value.trim().toLowerCase();
+  const rows = wordListSource();
+  return kw ? rows.filter(e => e.w.includes(kw) || W[e.i][3].toLowerCase().includes(kw)) : rows;
 }
 function dayWordState(w){                            // 该词现在所在的"本" (实时状态)
   if (skip[w]) return {b:'<span class="c" style="background:var(--badbg);color:var(--bad)">🚫不练</span>', d:'已在不练本'};
@@ -901,11 +925,24 @@ function dayWordState(w){                            // 该词现在所在的"�
   return {b:'<span class="c" style="background:var(--chip);color:var(--sub)">—</span>', d:'暂无记录'};
 }
 function renderDayBook(){
-  if (!dayView) return;
-  const {dk, cat} = dayView;
-  const meta = DAY_CATS[cat] || {lbl:'词单'};
-  const rows = dayRows();
-  $('dayBookInfo').textContent = dk + ' · ' + meta.lbl + ' · ' + rows.length + ' 个词 · ' + user;
+  if (!dayView && !bankView) return;
+  const rows = wordListRows();
+  let title, empty, drillTxt;
+  if (bankView){
+    const d = bankDef(bankView.bank);
+    const total = d.hi - d.lo;
+    title = d.name + ' · ' + (rows.length === total ? rows.length + ' 个词' : '匹配 ' + rows.length + ' / ' + total) + ' · ' + user;
+    empty = '没有匹配的词';
+    drillTxt = rows.length ? '练这 ' + rows.length + ' 个词' : '练这个词库';
+  } else {
+    const {dk, cat} = dayView;
+    const meta = DAY_CATS[cat] || {lbl:'词单'};
+    title = dk + ' · ' + meta.lbl + ' · ' + rows.length + ' 个词 · ' + user;
+    empty = '这一天没有「'+meta.lbl+'」的词单记录<br>'+
+      '<span style="font-size:12px;color:var(--sub)">'+(hist[dk] ? '旧记录只保存了数量, 词单从此功能上线后开始记录' : '当天没有此类操作')+'</span>';
+    drillTxt = rows.length ? '练这 '+rows.length+' 个词' : '练这些词';
+  }
+  $('dayBookInfo').textContent = title;
   $('dayList').innerHTML = rows.length ? rows.map(e => {
     const [w,p,rk,t] = W[e.i];
     const st = dayWordState(w);
@@ -913,36 +950,59 @@ function renderDayBook(){
       '<div class="wbody"><span class="w" data-w="'+escA(w)+'" title="点击发音">'+esc(w)+'</span>'+
       (p?'<span class="p">/'+esc(p)+'/</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
       '<div class="wn">'+st.b+'<div class="d">'+st.d+'</div></div></div>';
-  }).join('') : '<div class="empty">这一天没有「'+meta.lbl+'」的词单记录<br>'+
-    '<span style="font-size:12px;color:var(--sub)">'+(hist[dk] ? '旧记录只保存了数量, 词单从此功能上线后开始记录' : '当天没有此类操作')+'</span></div>';
-  $('btnDayDrill').textContent = rows.length ? '练这 '+rows.length+' 个词' : '练这些词';
+  }).join('') : '<div class="empty">'+empty+'</div>';
+  $('btnDayDrill').textContent = drillTxt;
 }
 ['dayDetail','calDetail'].forEach(id => $(id).addEventListener('click', e => {
   const t = e.target.closest('.dcat');
   if (t) openDayBook(t.dataset.dk, t.dataset.cat);
 }));
+$('bankChips').addEventListener('dblclick', e => {   // 双击词库 chip → 该词库整本词本
+  const c = e.target.closest('.chip');
+  if (c && c.dataset.v) openBankBook(c.dataset.v);
+});
+let _daySearchTimer = null;
+$('daySearch').oninput = () => {                     // 大词库重渲开销大, 轻微防抖
+  clearTimeout(_daySearchTimer);
+  _daySearchTimer = setTimeout(renderDayBook, 150);
+};
 $('dayList').addEventListener('click', e => {        // 点单词发音
   const w = e.target.closest('.w');
   if (w && w.dataset.w) speak(w.dataset.w);
 });
 $('btnDayBack').onclick  = () => show('home');       // 不重渲首页, 保留近7天/日历的展开状态
-$('btnDayDrill').onclick = () => {                   // 当日词单专练
-  const idxs = dayRows().map(e => e.i);
-  if (!idxs.length || !dayView) return;
-  startRound({ idxs, old: [], label: dayView.dk + ' ' + (DAY_CATS[dayView.cat]||{lbl:''}).lbl + ' 专练' });
+$('btnDayDrill').onclick = () => {                   // 词单页专练: 当日词单 或 词库(排除不练词, 与常规出题一致)
+  let idxs = wordListRows().map(e => e.i);
+  if (!idxs.length) return;
+  let label;
+  if (bankView){
+    idxs = idxs.filter(i => !skip[W[i][0]]);
+    if (!idxs.length) return;
+    label = bankDef(bankView.bank).name + ' 词库专练';
+  } else if (dayView){
+    label = dayView.dk + ' ' + (DAY_CATS[dayView.cat]||{lbl:''}).lbl + ' 专练';
+  } else return;
+  startRound({ idxs, old: [], label });
 };
-$('btnDayExport').onclick = () => {                  // 导出当日词单
-  if (!dayView) return;
-  const rows = dayRows();
+$('btnDayExport').onclick = () => {                  // 导出词单: 当日 或 词库
+  const rows = wordListRows();
   if (!rows.length) return;
-  const meta = DAY_CATS[dayView.cat] || {lbl:'词单'};
-  const lines = ['用户\t日期\t分类\t词频\t单词\t音标\t当前状态\t释义'];
-  rows.forEach(e => { const [w,p,rk,t] = W[e.i];
-    lines.push([user, dayView.dk, meta.lbl, rk, w, p?'/'+p+'/':'', dayWordState(w).d, t].join('\t')); });
-  const blob = new Blob(['﻿'+lines.join('\n')], {type:'text/plain;charset=utf-8'});
+  let name, lines;
+  if (bankView){
+    name = bankDef(bankView.bank).name;
+    lines = ['用户\t词库\t词频\t单词\t音标\t当前状态\t释义'];
+    rows.forEach(e => { const [w,p,rk,t] = W[e.i];
+      lines.push([user, name, rk, w, p?'/'+p+'/':'', dayWordState(w).d, t].join('\t')); });
+  } else {
+    name = dayView.dk + '_' + (DAY_CATS[dayView.cat]||{lbl:'词单'}).lbl;
+    lines = ['用户\t日期\t分类\t词频\t单词\t音标\t当前状态\t释义'];
+    rows.forEach(e => { const [w,p,rk,t] = W[e.i];
+      lines.push([user, dayView.dk, (DAY_CATS[dayView.cat]||{lbl:''}).lbl, rk, w, p?'/'+p+'/':'', dayWordState(w).d, t].join('\t')); });
+  }
+  const blob = new Blob(['\ufeff'+lines.join('\n')], {type:'text/plain;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = dayView.dk + '_' + meta.lbl + '_' + user + '.txt';
+  a.download = name + '_' + user + '.txt';
   a.click();
 };
 
