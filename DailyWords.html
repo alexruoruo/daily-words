@@ -310,7 +310,7 @@ input:focus{outline:none;border-color:var(--brand)}
 .optmodal{position:fixed;inset:0;background:rgba(10,16,30,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:18px}
 .optmodal-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px;max-width:440px;width:100%;max-height:84vh;overflow:auto;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3)}
 .optmodal-word{font-size:30px;font-weight:800;color:var(--brand);letter-spacing:.5px;margin-bottom:6px;word-break:break-word}
-.optmodal-phon{font-size:14px;color:#98a2ae;margin-bottom:12px;font-family:"Segoe UI",system-ui,sans-serif}
+.optmodal-phon{font-size:14px;color:#98a2ae;margin-bottom:12px;font-family:"Segoe UI",system-ui,sans-serif;display:flex;align-items:center;justify-content:center;gap:6px}
 .optmodal-tag{font-size:12px;margin-bottom:12px;min-height:16px}
 .optmodal-tag .tnb{color:#fff;background:#e23b3b;padding:3px 9px;border-radius:6px;font-weight:700;margin-right:6px;display:inline-block}
 .optmodal-tag .tsk{color:#fff;background:#888;padding:3px 9px;border-radius:6px;font-weight:700;margin-right:6px;display:inline-block}
@@ -546,8 +546,15 @@ document.addEventListener('click', e => {
 function showOptDetail(W_row){
   const [w, p, , t] = W_row;
   $('omWord').textContent = w;
-  $('omPhon').textContent = p ? '/' + p + '/' : '';
-  $('omPhon').style.display = p ? '' : 'none';
+  // 音标前加喇叭; 喇叭与音标都可点读
+  if (p){
+    $('omPhon').innerHTML = '<span class="spk" data-w="'+escA(w)+'" title="点击发音" style="font-size:16px">🔊</span>'+
+                            '<span class="spkphon" data-w="'+escA(w)+'">/'+esc(p)+'/</span>';
+    $('omPhon').style.display = '';
+  } else {
+    $('omPhon').innerHTML = '';
+    $('omPhon').style.display = 'none';
+  }
   let tag = '';
   if (nb[w]) tag += '<span class="tnb">⚠ 不熟本</span>';
   if (skip[w]) tag += '<span class="tsk">🚫 不练本</span>';
@@ -1521,7 +1528,16 @@ function openSpellModal(box, wArg, pArg){
   _spellBox = box || null;
   _spellW = w;
   $('spellModalWord').textContent = '???';
-  $('spellModalPhon').textContent = phon;
+  // 提示行末尾加 (N 个字母), N 与下划线格数对应, 提示用户要填几位
+  $('spellModalHint').innerHTML = '请拼写下面的英文单词 <span style="opacity:.55;font-weight:normal">(' + _spellW.length + ' 个字母)</span>';
+  if (phon){
+    $('spellModalPhon').innerHTML = '<span class="spk" data-w="'+escA(w)+'" title="点击发音" style="font-size:16px">🔊</span>'+
+                                    '<span class="spkphon" data-w="'+escA(w)+'">/'+esc(phon)+'/</span>';
+    $('spellModalPhon').style.display = '';
+  } else {
+    $('spellModalPhon').innerHTML = '';
+    $('spellModalPhon').style.display = 'none';
+  }
   $('spellModalFb').innerHTML = '';
   // 动态建造下划线输入框, 每个字母一格 (含连字符/撇号/空格也算一格)
   const wrap = $('spellLetters');
@@ -1783,7 +1799,14 @@ function openRelatedModal(cat, word, phon){
   const catName = REL_CAT[cat] || '关联';
   $('relatedModalCat').textContent = '按「' + catName + '」查找 ' + word;
   $('relatedModalWord').textContent = word;
-  $('relatedModalPhon').textContent = phon ? '/' + phon + '/' : '';
+  if (phon){
+    $('relatedModalPhon').innerHTML = '<span class="spk" data-w="'+escA(word)+'" title="点击发音" style="font-size:16px">🔊</span>'+
+                                      '<span class="spkphon" data-w="'+escA(word)+'">/'+esc(phon)+'/</span>';
+    $('relatedModalPhon').style.display = '';
+  } else {
+    $('relatedModalPhon').innerHTML = '';
+    $('relatedModalPhon').style.display = 'none';
+  }
 
   let rows = [];
   const MAX = 18;
@@ -1925,7 +1948,7 @@ try {
 
 <!-- 释义弹窗: 双击答题选项触发 -->
 <div id="optModal" class="optmodal hide">
-  <div class="optmodal-card" onclick="event.stopPropagation()">
+  <div class="optmodal-card">
     <div class="optmodal-word" id="omWord"></div>
     <div class="optmodal-phon" id="omPhon"></div>
     <div class="optmodal-tag" id="omTag"></div>
@@ -1936,7 +1959,7 @@ try {
 
 <!-- 关联词弹框: 答题页卡片四角按钮唤起, 显示近/反/联/像清单 -->
 <div id="relatedModal" class="optmodal hide">
-  <div class="optmodal-card compact" onclick="event.stopPropagation()">
+  <div class="optmodal-card compact">
     <button type="button" class="spellClose" aria-label="关闭" onclick="closeRelatedModal()">×</button>
     <div class="relatedCatRow" id="relatedModalCat">近义词</div>
     <div class="optmodal-word" id="relatedModalWord" style="font-size:22px;margin-bottom:2px">???</div>
@@ -1948,9 +1971,9 @@ try {
 
 <!-- 拼写弹框: 点「拼写 ›」按钮唤起, 一字一格下划线, 输完最后一字自动判定 -->
 <div id="spellModal" class="optmodal hide">
-  <div class="optmodal-card compact" onclick="event.stopPropagation()">
+  <div class="optmodal-card compact">
     <button type="button" class="spellClose" aria-label="关闭" onclick="closeSpellModal()">×</button>
-    <div style="font-size:12px;color:var(--sub);margin-bottom:4px;padding-right:22px">请拼写下面的英文单词</div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:4px;padding-right:22px" id="spellModalHint">请拼写下面的英文单词</div>
     <div class="optmodal-word" id="spellModalWord" style="font-size:22px;margin-bottom:2px">???</div>
     <div class="optmodal-phon" id="spellModalPhon" style="font-size:13px;margin-bottom:8px"></div>
     <div class="spellLetters" id="spellLetters"></div>
