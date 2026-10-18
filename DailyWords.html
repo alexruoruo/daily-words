@@ -297,6 +297,9 @@ input:focus{outline:none;border-color:var(--brand)}
   font-size:14px;
 }
 .relatedItem:last-child{border-bottom:none}
+.relatedItem:hover{background:var(--chip)}
+.relatedItem .spkphon{opacity:1;padding:2px 6px;border-radius:6px;transition:background .15s,color .15s}
+.relatedItem .spkphon:hover{background:rgba(127,127,127,.12);color:var(--brand2)}
 .relatedW{font-weight:700;color:var(--brand);min-width:90px;flex-shrink:0}
 .relatedT{color:var(--sub);flex:1;line-height:1.5;word-break:break-word}
 .relatedEmpty{text-align:center;color:var(--sub);padding:30px 0;font-size:13px}
@@ -1825,7 +1828,7 @@ function openRelatedModal(cat, word, phon){
     listEl.innerHTML = rows.map(r => {
       const [w,p,,t] = r;
       return '<div class="relatedItem">'+
-               '<span class="relatedW">'+esc(w)+'</span>'+
+               '<span class="relatedW spkphon" data-w="'+escA(w)+'" title="点击发音">'+esc(w)+'</span>'+
                (p?'<span class="relatedP">/'+esc(p)+'/</span>':'')+
                '<span class="relatedT">'+esc(t)+'</span>'+
              '</div>';
