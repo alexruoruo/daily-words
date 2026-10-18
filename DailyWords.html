@@ -406,6 +406,8 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="chips" id="freshChips"></div>
     <div class="lbl">每轮题量</div>
     <div class="chips" id="roundChips"></div>
+    <div class="lbl">每日夯实词量（从近几天新错+标记不熟中回溯取词）</div>
+    <div class="chips" id="hammerChips"></div>
     <div class="lbl">出题方向</div>
     <div class="chips" id="dirChips"></div>
     <div class="lbl">选项中显示音标</div>
@@ -414,6 +416,7 @@ input:focus{outline:none;border-color:var(--brand)}
     <div class="chips" id="autoChips"></div>
     <button class="btn" id="btnStart">开始练习</button>
     <button class="btn ghost" id="btnBook">学习记录</button>
+    <button class="btn ghost" id="btnHammer">每日夯实</button>
     <div class="hint">
       <div>当前档案：<b id="hintUser"></b>。音标为英式（DJ 音标）。</div>
       <ol>
@@ -431,6 +434,7 @@ input:focus{outline:none;border-color:var(--brand)}
         <li>首页顶部 6 个「本」点击即可跳到对应的学习记录 tab；学习记录页可按「字母升序 / 词频顺序 / 加入时间」三种规则重新排序。</li>
         <li>近 7 天柱状图或历史日历的当日明细里，<b>点分类数字</b>（所答/新错/毕业/标记不熟/记入熟记/标记不练）可打开当天的词单页：查看这些词的当前状态、点词发音、<b>专练这些词</b>或导出词单；旧记录只保存数量、没有词单。</li>
         <li>首页<b>双击词库</b>（日常高频/计算机专业/外贸专用/四六级/托福雅思）可打开该词库的整本词本：浏览全部词、搜索、看每个词当前所在的本、专练或导出；专练时会自动跳过不练本的词。</li>
+        <li><b>每日夯实</b>：从昨天起往前回溯「新错 + 标记不熟」词单取词专练——前一天够 N 个就随机取 N 个，不够则全取并继续往前一天补，取够为止（最多回溯 90 天，跨天去重、跳过不练本）。词量 N 在「每日夯实词量」里配置。</li>
       </ol>
     </div>
   </div>
@@ -738,6 +742,8 @@ function renderHome(){
     v => (+cfg.fresh||0)===v, v => cfg.fresh=v);
   mkChips('roundChips', [10,20,50,100].map(r => ({v:r, t:r+' 题/轮'})),
     v => cfg.round===v, v => cfg.round=v);
+  mkChips('hammerChips', [5,10,15,20,30].map(n => ({v:n, t:n+' 词'})),
+    v => (+cfg.hammer||10)===v, v => cfg.hammer=v);
   mkChips('dirChips', [{v:'en2zh',t:'看单词 → 选释义'},{v:'zh2en',t:'看释义 → 选单词'}],
     v => cfg.dir===v, v => cfg.dir=v);
   mkChips('phonChips', [{v:1,t:'显示'},{v:0,t:'隐藏'}],
@@ -1006,6 +1012,34 @@ $('btnDayExport').onclick = () => {                  // 导出词单: 当日 或
   a.click();
 };
 
+/* ---------------- 每日夯实 ---------------- */
+function hammerPool(){                               // 从近几天「新错+标记不熟」词单回溯取词: 前一天够 N 随机取 N, 不够全取再往前
+  const need = +cfg.hammer || 10;
+  const picked = [], seen = new Set();               // 跨天去重; 不练本的词不练
+  for (let d = 1; d <= 90 && picked.length < need; d++){
+    const h = hist[dayKey(Date.now() - d*86400000)];
+    if (!h) continue;
+    const dayWords = [];
+    (h.we || []).concat(h.wn || []).forEach(w => {
+      if (!seen.has(w) && !skip[w]){ seen.add(w); dayWords.push(w); }
+    });
+    if (!dayWords.length) continue;
+    const take = Math.min(need - picked.length, dayWords.length);
+    const chosen = take === dayWords.length ? dayWords          // 该天不够 → 全取; 够 → 随机取剩余需求
+                                            : shuffle(dayWords.slice()).slice(0, take);
+    picked.push(...chosen);
+  }
+  return picked.map(w => W.findIndex(x => x[0]===w)).filter(i => i >= 0);
+}
+$('btnHammer').onclick = () => {
+  const idxs = hammerPool();
+  if (!idxs.length){
+    alert('近几天没有「新错 / 标记不熟」的词单记录，暂无可夯实的词。\n（词单从 v35 起开始记录，答错的词和做题时点「⚠ 不熟」的词会在次日出现在这里）');
+    return;
+  }
+  startRound({ idxs, old: [], max: idxs.length, label: '每日夯实 · 近几天新错+不熟 ' + idxs.length + ' 词' });
+};
+
 /* ---------------- 出题 ---------------- */
 let queue = [], asked = 0, right = 0, recent = [], cur = null, roundStart = 0, gradList = [], nbOut = [], memList = [], retries = {},
     log = [], view = null, planned = 0, waitNext = false;
@@ -1070,16 +1104,17 @@ function startRound(customPool){
   }
   const ordered = cfg.order !== 'rand';
   const useCursor = ordered && !freshMode && !customPool;  // 专练轮/只出新词 不动续背游标
+  const cap = (customPool && customPool.max) || cfg.round; // 专练轮可自带词量上限(每日夯实), 缺省用每轮题量
   if (ordered){
     const cursorBefore = +cfg.cursor[cfg.order] || 0;
-    const base = takeOrdered(pool.idxs, cfg.round, useCursor);
+    const base = takeOrdered(pool.idxs, cap, useCursor);
     if (useCursor && pool.idxs.length){               // 游标前进本轮词量
       cfg.cursor[cfg.order] = (cursorBefore + base.length) % pool.idxs.length;
       K.set(uk('cfg'), cfg);
     }
     queue = base.concat((pool.old || []).filter(i => !base.includes(i)));   // 错题附在本轮末尾, 不打乱续背顺序
   } else {
-    queue = shuffle(pool.idxs.slice()).slice(0, cfg.round);
+    queue = shuffle(pool.idxs.slice()).slice(0, cap);
     (pool.old || []).forEach(i => { if (!queue.includes(i)) queue.splice(Math.random()*queue.length|0, 0, i); });
   }
   asked = 0; right = 0; recent = []; gradList = []; nbOut = []; memList = []; retries = {};
