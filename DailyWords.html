@@ -72,7 +72,7 @@ header .cnt{font-size:12px;color:var(--sub)}
 .stats .l{font-size:10px;color:var(--sub);margin-top:2px}
 .today{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
 .today b{font-size:15px}
-.week{display:flex;gap:6px;align-items:flex-end;height:60px}
+.week{display:flex;gap:6px;align-items:flex-end;height:76px}
 .week .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;height:100%;cursor:pointer}
 .week .col .b{transition:filter .15s}
 .week .col:hover .b{filter:brightness(1.15)}
@@ -80,6 +80,13 @@ header .cnt{font-size:12px;color:var(--sub)}
 .week .b{width:100%;border-radius:4px 4px 2px 2px;background:linear-gradient(180deg,var(--brand2),var(--brand));min-height:3px}
 .week .b.z{background:var(--chip)}
 .week .lb{font-size:9px;color:var(--sub)}
+.week .n{font-size:9px;line-height:1;font-weight:700;color:var(--sub)}
+.week .n.z{opacity:.5}
+.week .col.sel .n{color:var(--brand)}
+.dcat{cursor:pointer}                                   /* 当日明细里的分类数字: 点击进当日词单 */
+.dcat b{text-decoration:underline dotted;text-underline-offset:3px}
+.dcat:active{opacity:.6}
+#dayList .w{cursor:pointer}
 .lbl{font-size:13px;color:var(--sub);margin:10px 0 6px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{padding:7px 14px;border-radius:999px;background:var(--chip);font-size:14px;cursor:pointer;user-select:none}
@@ -422,6 +429,7 @@ input:focus{outline:none;border-color:var(--brand)}
         <li>答题页里<b>双击题目里的英文单词</b>，会弹出与学习记录行一样的拼写弹框；拼对连数与各本共用 <code>cfg.spellStreak</code>，达到 10 次后该词按钮染绿。</li>
         <li>「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词（错题注入暂停），范围内新词练完自动回退为可重复。</li>
         <li>首页顶部 6 个「本」点击即可跳到对应的学习记录 tab；学习记录页可按「字母升序 / 词频顺序 / 加入时间」三种规则重新排序。</li>
+        <li>近 7 天柱状图或历史日历的当日明细里，<b>点分类数字</b>（所答/新错/毕业/标记不熟/记入熟记/标记不练）可打开当天的词单页：查看这些词的当前状态、点词发音、<b>专练这些词</b>或导出词单；旧记录只保存数量、没有词单。</li>
       </ol>
     </div>
   </div>
@@ -498,6 +506,19 @@ input:focus{outline:none;border-color:var(--brand)}
   <button id="btnTop" aria-label="回到顶部">↑</button>
 </div>
 
+<!-- 当日词单 (近7天/日历 明细里点分类数字进入) -->
+<div class="page hide" id="daybook">
+  <div class="top" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="quit" id="btnDayBack">‹ 返回</div>
+    <div style="font-size:13px;color:var(--sub)" id="dayBookInfo"></div>
+  </div>
+  <div class="row">
+    <button class="btn" id="btnDayDrill">练这些词</button>
+    <button class="btn ghost" id="btnDayExport">导出词单</button>
+  </div>
+  <div class="card" id="dayList" style="margin-top:10px"></div>
+</div>
+
 <!-- 用户面板 -->
 <div id="mask" class="hide">
   <div id="userPanel">
@@ -521,13 +542,17 @@ const K = { set(k,v){ localStorage.setItem(k, JSON.stringify(v)); },
 const $ = id => document.getElementById(id);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const syncTopBtn = () => $('btnTop').classList.toggle('show', !$('book').classList.contains('hide') && window.scrollY > 300);
-const show = id => { ['login','home','quiz','result','book'].forEach(v => $(v).classList.toggle('hide', v!==id)); syncTopBtn(); };
+const show = id => { ['login','home','quiz','result','book','daybook'].forEach(v => $(v).classList.toggle('hide', v!==id)); syncTopBtn(); };
 const shuffle = a => { for(let i=a.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [a[i],a[j]]=[a[j],a[i]]; } return a; };
 const dayKey = (t) => { const d = t ? new Date(t) : new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
 const fmtT = t => { const d=new Date(t); return (d.getMonth()+1)+'-'+String(d.getDate()).padStart(2,'0'); };
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const escA = s => esc(s).replace(/"/g,'&quot;');      // 属性用: 再转义引号
+const dayAddWord = (dk, key, w) => {                  // 当日词单(每类每天去重): wa所答/we新错/wg毕业/wn不熟/wm熟记/wk不练
+  const h = hist[dk] = hist[dk] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
+  (h[key] = h[key] || []).includes(w) || h[key].push(w);
+};
 
 /* ---------------- 发音 ---------------- */
 function speak(w){
@@ -727,7 +752,7 @@ function renderHome(){
     const tb = hist[dayKey()] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
     $('todayTxt').textContent = '今日 答 '+tb.a+' · 对 '+tb.r;
     $('weekBars').innerHTML = days.map(d =>
-      '<div class="col'+(d.k===_selDay?' sel':'')+'" data-d="'+d.k+'"><div class="b'+(d.h.a?'':' z')+'" style="height:'+(d.h.a?Math.max(6,Math.round(d.h.a/mx*100)):3)+'%"></div><div class="lb">'+d.lb+'</div></div>').join('');
+      '<div class="col'+(d.k===_selDay?' sel':'')+'" data-d="'+d.k+'"><div class="n'+(d.h.a?'':' z')+'">'+d.h.a+'</div><div class="b'+(d.h.a?'':' z')+'" style="height:'+(d.h.a?Math.max(6,Math.round(d.h.a/mx*65)):3)+'%"></div><div class="lb">'+d.lb+'</div></div>').join('');
     if (_selDay && days.some(d => d.k === _selDay)) showDayDetail(_selDay);
     else { $('dayDetail').classList.add('hide'); _selDay = null; }
   }
@@ -747,15 +772,9 @@ function showDayDetail(dk){
   const acc = h.a ? Math.round(h.r / h.a * 100) : 0;
   const wd = ['日','一','二','三','四','五','六'][new Date(dk).getDay()];
   $('dayDetail').innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:baseline"><b>'+dk+'（周'+wd+'）</b><span style="font-size:11px;color:var(--sub)">点击柱子或此区域再次点击可收起</span></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline"><b>'+dk+'（周'+wd+'）</b><span style="font-size:11px;color:var(--sub)">点分类数字看当日词单 · 再点柱子收起</span></div>' +
     '<div style="margin-top:4px">答 <b>'+h.a+'</b> · 对 <b style="color:var(--ok)">'+h.r+'</b> · 正确率 <b>'+acc+'%</b></div>' +
-    '<div style="margin-top:4px;font-size:12px;color:var(--sub)">' +
-      '<span style="color:var(--bad);font-weight:700">新错 '+h.e+'</span> · ' +
-      '<span style="color:var(--gold);font-weight:700">毕业 '+h.g+'</span> · ' +
-      '<span style="color:var(--nbink);font-weight:700">标记不熟 '+h.n+'</span> · ' +
-      '<span style="color:var(--memink);font-weight:700">记入熟记 '+h.m+'</span> · ' +
-      '<span style="color:var(--ink);font-weight:700">标记不练 '+h.k+'</span>' +
-    '</div>';
+    '<div style="margin-top:4px;font-size:12px;color:var(--sub)">' + dayCatChips(dk) + '</div>';
   $('dayDetail').classList.remove('hide');
 }
 $('weekBars').addEventListener('click', e => {
@@ -826,16 +845,10 @@ function showCalDetail(dk){
   $('calDetail').innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:baseline">'+
       '<b>'+dk+'（周'+wd+'）</b>'+
-      '<span style="font-size:11px;color:var(--sub)">点击同一日再次点击收起</span>'+
+      '<span style="font-size:11px;color:var(--sub)">点分类数字看当日词单 · 再点同一日收起</span>'+
     '</div>'+
     '<div style="margin-top:4px">答 <b>'+h.a+'</b> · 对 <b style="color:var(--ok)">'+h.r+'</b> · 正确率 <b>'+acc+'%</b></div>'+
-    '<div style="margin-top:4px;font-size:12px;color:var(--sub)">'+
-      '<span style="color:var(--bad);font-weight:700">新错 '+h.e+'</span> · '+
-      '<span style="color:var(--gold);font-weight:700">毕业 '+h.g+'</span> · '+
-      '<span style="color:var(--nbink);font-weight:700">标记不熟 '+h.n+'</span> · '+
-      '<span style="color:var(--memink);font-weight:700">记入熟记 '+h.m+'</span> · '+
-      '<span style="color:var(--ink);font-weight:700">标记不练 '+h.k+'</span>'+
-    '</div>';
+    '<div style="margin-top:4px;font-size:12px;color:var(--sub)">' + dayCatChips(dk) + '</div>';
   $('calDetail').classList.remove('hide');
 }
 
@@ -848,6 +861,90 @@ $('calGrid').addEventListener('click', e => {
   if (!cell || !cell.dataset.d) return;
   showCalDetail(cell.dataset.d);
 });
+
+/* ---------------- 当日词单 (近7天/日历明细的分类数字点击进入) ---------------- */
+const DAY_CATS = {                                   // 分类 → 词单键/标签/颜色; 旧记录无词单只留数量
+  wa:{lbl:'所答',     col:'var(--ink)'},
+  we:{lbl:'新错',     col:'var(--bad)'},
+  wg:{lbl:'毕业',     col:'var(--gold)'},
+  wn:{lbl:'标记不熟', col:'var(--nbink)'},
+  wm:{lbl:'记入熟记', col:'var(--memink)'},
+  wk:{lbl:'标记不练', col:'var(--ink)'},
+};
+const DAY_LEG = {wa:'a', we:'e', wg:'g', wn:'n', wm:'m', wk:'k'};   // 词单键 → 旧计数键
+function dayCatChips(dk){                            // 明细里的分类 chips (旧记录回退显示数量)
+  const h = hist[dk] || {};
+  return Object.keys(DAY_CATS).map(c => {
+    const n = h[c] ? h[c].length : (h[DAY_LEG[c]] || 0);
+    return '<span class="dcat" data-dk="'+dk+'" data-cat="'+c+'" style="color:'+DAY_CATS[c].col+';font-weight:700">'+DAY_CATS[c].lbl+' <b>'+n+'</b></span>';
+  }).join(' · ');
+}
+let dayView = null;                                  // 当前查看的当日词单 {dk, cat}
+function openDayBook(dk, cat){
+  if (!DAY_CATS[cat]) return;
+  dayView = {dk, cat};
+  renderDayBook();
+  show('daybook');
+}
+function dayRows(){                                  // 当日词单 → W 行(词已不在词库的丢弃)
+  if (!dayView) return [];
+  return ((hist[dayView.dk] || {})[dayView.cat] || [])
+    .map(w => { const i = W.findIndex(x => x[0]===w); return i<0?null:{i,w}; }).filter(Boolean);
+}
+function dayWordState(w){                            // 该词现在所在的"本" (实时状态)
+  if (skip[w]) return {b:'<span class="c" style="background:var(--badbg);color:var(--bad)">🚫不练</span>', d:'已在不练本'};
+  if (err[w])  return {b:'<span class="c">×'+err[w].n+'</span>', d:'错题本连对 '+err[w].s+'/'+NEED};
+  if (nb[w])   return {b:'<span class="c nbw">⚠不熟</span>', d:'不熟本连对 '+nb[w].s+'/'+NEEDNB};
+  if (grad[w]) return {b:'<span class="c gd">🎓毕业</span>', d:'在毕业本'};
+  if (mem[w])  return {b:'<span class="c mem">🎯熟记</span>', d:'在熟记本'};
+  if (rec[w] && rec[w].w===0) return {b:'<span class="c ok">✓</span>', d:'当前全对'};
+  return {b:'<span class="c" style="background:var(--chip);color:var(--sub)">—</span>', d:'暂无记录'};
+}
+function renderDayBook(){
+  if (!dayView) return;
+  const {dk, cat} = dayView;
+  const meta = DAY_CATS[cat] || {lbl:'词单'};
+  const rows = dayRows();
+  $('dayBookInfo').textContent = dk + ' · ' + meta.lbl + ' · ' + rows.length + ' 个词 · ' + user;
+  $('dayList').innerHTML = rows.length ? rows.map(e => {
+    const [w,p,rk,t] = W[e.i];
+    const st = dayWordState(w);
+    return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div>'+
+      '<div class="wbody"><span class="w" data-w="'+escA(w)+'" title="点击发音">'+esc(w)+'</span>'+
+      (p?'<span class="p">/'+esc(p)+'/</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
+      '<div class="wn">'+st.b+'<div class="d">'+st.d+'</div></div></div>';
+  }).join('') : '<div class="empty">这一天没有「'+meta.lbl+'」的词单记录<br>'+
+    '<span style="font-size:12px;color:var(--sub)">'+(hist[dk] ? '旧记录只保存了数量, 词单从此功能上线后开始记录' : '当天没有此类操作')+'</span></div>';
+  $('btnDayDrill').textContent = rows.length ? '练这 '+rows.length+' 个词' : '练这些词';
+}
+['dayDetail','calDetail'].forEach(id => $(id).addEventListener('click', e => {
+  const t = e.target.closest('.dcat');
+  if (t) openDayBook(t.dataset.dk, t.dataset.cat);
+}));
+$('dayList').addEventListener('click', e => {        // 点单词发音
+  const w = e.target.closest('.w');
+  if (w && w.dataset.w) speak(w.dataset.w);
+});
+$('btnDayBack').onclick  = () => show('home');       // 不重渲首页, 保留近7天/日历的展开状态
+$('btnDayDrill').onclick = () => {                   // 当日词单专练
+  const idxs = dayRows().map(e => e.i);
+  if (!idxs.length || !dayView) return;
+  startRound({ idxs, old: [], label: dayView.dk + ' ' + (DAY_CATS[dayView.cat]||{lbl:''}).lbl + ' 专练' });
+};
+$('btnDayExport').onclick = () => {                  // 导出当日词单
+  if (!dayView) return;
+  const rows = dayRows();
+  if (!rows.length) return;
+  const meta = DAY_CATS[dayView.cat] || {lbl:'词单'};
+  const lines = ['用户\t日期\t分类\t词频\t单词\t音标\t当前状态\t释义'];
+  rows.forEach(e => { const [w,p,rk,t] = W[e.i];
+    lines.push([user, dayView.dk, meta.lbl, rk, w, p?'/'+p+'/':'', dayWordState(w).d, t].join('\t')); });
+  const blob = new Blob(['﻿'+lines.join('\n')], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = dayView.dk + '_' + meta.lbl + '_' + user + '.txt';
+  a.click();
+};
 
 /* ---------------- 出题 ---------------- */
 let queue = [], asked = 0, right = 0, recent = [], cur = null, roundStart = 0, gradList = [], nbOut = [], memList = [], retries = {},
@@ -928,7 +1025,7 @@ function startRound(customPool){
   asked = 0; right = 0; recent = []; gradList = []; nbOut = []; memList = []; retries = {};
   log = []; view = null; planned = queue.length;
   roundStart = Date.now();
-  $('qScope').textContent = (customPool ? '错题专练' :
+  $('qScope').textContent = (customPool ? (customPool.label || '错题专练') :
       (cfg.bank==='daily' ? '词频 ' + segLbl(cfg.scope) : (BANKS[cfg.bank] || BANKS.daily)())
       + ' (剩余 ' + poolCount() + ' 词)'
       + (reviewMode ? ' · 只练错题本+不熟本+毕业本'
@@ -953,6 +1050,7 @@ function nbSkip(){                                   // 记入不熟本(不自�
     const dk = dayKey();
     hist[dk] = hist[dk] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
     hist[dk].n++;
+    dayAddWord(dk, 'wn', w);                          // 当日标记不熟词单
     K.set(uk('hist'), hist);
   }
   K.set(uk('nb'), nb);
@@ -984,6 +1082,7 @@ function skSkip(){                                   // 记入不练本(不自�
     const dk = dayKey();
     hist[dk] = hist[dk] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
     hist[dk].k++;
+    dayAddWord(dk, 'wk', w);                          // 当日(手动)不练词单
     K.set(uk('hist'), hist);
     K.set(uk('err'), err);
     K.set(uk('nb'), nb);
@@ -1174,6 +1273,7 @@ function answer(k){
   const dk = dayKey();
   hist[dk] = hist[dk] || {a:0, r:0, e:0, g:0, n:0, m:0, k:0};
   hist[dk].a++;
+  dayAddWord(dk, 'wa', w);                           // 当日所答词单
   let msg = '', delay = 750;
   if(ok){
     right++; stats.right++; hist[dk].r++;
@@ -1186,6 +1286,7 @@ function answer(k){
         grad[w] = {n: e.n, t: Date.now()};
         stats.grad = (stats.grad||0) + 1;
         hist[dk].g++;
+        dayAddWord(dk, 'wg', w);                      // 当日毕业词单
         gradList.push(w);
         msg = '<span class="grad">🎉 连续答对 ' + NEED + ' 次，「'+esc(w)+'」已毕业移出错题本！</span>';
         delay = 2000;
@@ -1210,6 +1311,7 @@ function answer(k){
       mem[w] = {s: r.s, t: Date.now()};
       memList.push(w);
       hist[dk].m++;
+      dayAddWord(dk, 'wm', w);                        // 当日记入熟记词单
       msg += ' <span style="color:var(--memink);font-weight:700">🎯 连续答对 ' + r.s + ' 次，已记入熟记本！</span>';
       if (delay < 1500) delay = 1500;
     }
@@ -1217,6 +1319,7 @@ function answer(k){
       skip[w] = {t: Date.now(), s: r.s};
       delete err[w]; delete nb[w]; delete mem[w]; delete grad[w];  // 清理其他记录, 该词已彻底"练会"
       hist[dk].k++;
+      dayAddWord(dk, 'wk', w);                        // 当日(自动)不练词单
       msg += ' <span style="color:#888;font-weight:700">🚫 连续答对 ' + r.s + ' 次，自动记入不练本！</span>';
       if (delay < 2000) delay = 2000;
     }
@@ -1224,6 +1327,7 @@ function answer(k){
     r.w++;
     r.s = 0;                                            // 中途答错, 连续答对次数清零
     hist[dk].e++;
+    dayAddWord(dk, 'we', w);                          // 当日新错词单
     btns[k].classList.add('wrong'); btns[cur.correct].classList.add('right');
     const was = err[w];
     if (grad[w]){                                       // 毕业后又错 → 重新入册, 错误频次累计
