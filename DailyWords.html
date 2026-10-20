@@ -438,7 +438,7 @@ input:focus{outline:none;border-color:var(--brand)}
         <li><b>双击选项</b>可弹出大字号释义弹窗，方便看清长词意；单击仍是答题（双击判定窗口 300ms）。弹窗可点关闭、点遮罩或按 <kbd>ESC</kbd> 关闭。</li>
         <li>答题页里<b>双击题目里的英文单词</b>，会弹出与学习记录行一样的拼写弹框；拼对连数与各本共用 <code>cfg.spellStreak</code>，达到 10 次后该词按钮染绿。</li>
         <li>「之前练过的词」选<b>只出新词</b>后，每轮只出没练过/没跳过的词，范围内新词练完自动回退为可重复。</li>
-        <li>首页顶部 6 个「本」点击即可跳到对应的学习记录 tab；学习记录页可按「字母升序 / 词频顺序 / 加入时间」三种规则重新排序。</li>
+        <li>首页顶部 6 个「本」点击即可跳到对应的学习记录 tab；学习记录页可按「字母升序 / 词频顺序 / 加入时间」重新排序，错题本另有「<b>错次 ↓ / 错次 ↑</b>」（按累计答错次数降/升序，同错次按时间）。</li>
         <li>近 7 天柱状图或历史日历的当日明细里，<b>点分类数字</b>（所答/新错/毕业/标记不熟/记入熟记/标记不练）可打开当天的词单页：查看这些词的当前状态、点词发音、<b>专练这些词</b>或导出词单；旧记录只保存数量、没有词单。</li>
         <li>首页<b>双击词库</b>（日常高频/计算机专业/外贸专用/四六级/托福雅思）可打开该词库的整本词本：浏览全部词、搜索、看每个词当前所在的本、专练或导出；专练时会自动跳过不练本的词。词单超过一页时底部出现<b>翻页条</b>（首页/上一页/下一页/末页 + 跳至第 N 页），「每页显示」可调 20/50/100/200 条（会记住选择）；专练与导出始终针对全部搜索结果，不受分页影响。</li>
         <li><b>每日夯实</b>：点首页按钮先进入夯实配置页——显示近几天可夯实的词量、在这里选择每轮夯实词数（记住选择），点「开始夯实」出题。取词从昨天起回溯「新错 + 标记不熟」词单：前一天够 N 个就随机取 N 个，不够则全取并继续往前一天补，取够为止（最多回溯 90 天，跨天去重、跳过不练本）。</li>
@@ -512,6 +512,8 @@ input:focus{outline:none;border-color:var(--brand)}
       <span data-sort="time" class="on">加入时间</span>
       <span data-sort="freq">词频顺序</span>
       <span data-sort="az">字母 A-Z</span>
+      <span data-sort="cntDesc" style="display:none">错次 ↓</span>
+      <span data-sort="cntAsc" style="display:none">错次 ↑</span>
     </div>
   </div>
   <div class="card" id="bookList"></div>
@@ -1630,7 +1632,10 @@ function endRound(){
 
 /* ---------------- 学习记录 ---------------- */
 let bookTab = 'err';
-let bookSort = 'time';                                  // 排序: time=加入时间, freq=词频顺序, az=字母A-Z
+let bookSort = 'time';                                  // 排序: time=加入时间, freq=词频顺序, az=字母A-Z, cntDesc/cntAsc=错次降/升序(仅错题本)
+function effBookSort(){                                 // 错次排序只对错题本有效, 其他本回退加入时间
+  return /^cnt/.test(bookSort) && bookTab !== 'err' ? 'time' : bookSort;
+}
 function bookRows(){
   const kw = $('bookSearch').value.trim().toLowerCase();
   const pick = (tab) => {
@@ -1654,8 +1659,13 @@ function bookRows(){
     };
     const byFreq = (a, b) => (a.i - b.i);                // W 中索引即词频名次(升序)
     const byAZ   = (a, b) => (a.w < b.w ? -1 : a.w > b.w ? 1 : 0);
-    if (bookSort === 'az')   rows.sort(byAZ);
-    else if (bookSort === 'freq') rows.sort(byFreq);
+    const byCntDesc = (a, b) => (err[b.w].n - err[a.w].n) || (err[b.w].t - err[a.w].t);  // 错次多→少, 同错次新的在前
+    const byCntAsc  = (a, b) => (err[a.w].n - err[b.w].n) || (err[b.w].t - err[a.w].t);  // 错次少→多, 同错次旧的在前
+    const sort = effBookSort();
+    if (sort === 'az')   rows.sort(byAZ);
+    else if (sort === 'freq') rows.sort(byFreq);
+    else if (sort === 'cntDesc') rows.sort(byCntDesc);
+    else if (sort === 'cntAsc')  rows.sort(byCntAsc);
     else rows.sort(byTime);
     return rows;
   };
@@ -1669,7 +1679,10 @@ function renderBook(){
   $('tabMem').className   = 'tab' + (bookTab==='mem'?' on':'');
   $('tabClean').className = 'tab' + (bookTab==='clean'?' on':'');
   // 排序按钮高亮
-  document.querySelectorAll('#bookSortSeg span').forEach(s => s.className = s.dataset.sort===bookSort?' on':'');
+  document.querySelectorAll('#bookSortSeg span').forEach(s => {
+    s.className = s.dataset.sort===effBookSort() ? 'on' : '';
+    if (/^cnt/.test(s.dataset.sort)) s.style.display = bookTab==='err' ? '' : 'none';   // 错次排序仅错题本
+  });
   $('tabErr').textContent   = '错题本（'+Object.keys(err).length+'）';
   $('tabGrad').textContent  = '毕业本（'+Object.keys(grad).length+'）';
   $('tabNB').textContent    = '不熟本（'+Object.keys(nb).length+'）';
