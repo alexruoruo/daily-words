@@ -611,7 +611,7 @@ function showOptDetail(W_row){
   // 音标前加喇叭; 喇叭与音标都可点读
   if (p){
     $('omPhon').innerHTML = '<span class="spk" data-w="'+escA(w)+'" title="点击发音" style="font-size:16px">🔊</span>'+
-                            '<span class="spkphon" data-w="'+escA(w)+'">/'+esc(p)+'/</span>';
+                            '<span class="spkphon" data-w="'+escA(w)+'">/'+esc(p)+'/*'+w.length+'</span>';
     $('omPhon').style.display = '';
   } else {
     $('omPhon').innerHTML = '';
@@ -1011,7 +1011,7 @@ function renderDayBook(){
     const st = dayWordState(w);
     return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div>'+
       '<div class="wbody"><span class="w" data-w="'+escA(w)+'" title="点击发音">'+esc(w)+'</span>'+
-      (p?'<span class="p">/'+esc(p)+'/</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
+      (p?'<span class="p">/'+esc(p)+'/*'+w.length+'</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
       '<div class="wn">'+st.b+'<div class="d">'+st.d+'</div></div></div>';
   }).join('') : '<div class="empty">'+empty+'</div>';
   const paged = pages > 1;                            // 一页装得下时不显示条数与翻页
@@ -1371,7 +1371,7 @@ function renderQ(){                                  // 渲染当前待答的题
       cornerHtml('rel','联','bl') +
       cornerHtml('syn','近','br') +
     (en2zh
-      ? '<div class="qword'+(nb[w]?' nb':'')+'" data-w="'+escA(w)+'" data-p="'+escA(p||'')+'" title="双击进入拼写">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>' : '')
+      ? '<div class="qword'+(nb[w]?' nb':'')+'" data-w="'+escA(w)+'" data-p="'+escA(p||'')+'" title="双击进入拼写">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/*'+w.length+'</span></div>' : '')
       : '<div class="qtrans">'+esc(t)+'</div>');
   $('fb').textContent = '';
   $('qNum').textContent = '第 ' + (log.length+1) + ' 题 · ' +
@@ -1382,7 +1382,7 @@ function renderQ(){                                  // 渲染当前待答的题
     const b = document.createElement('button');
     b.className = 'opt';
     const [w2,p2,,t2] = W[j];
-    b.innerHTML = en2zh ? esc(t2) : '<b>'+esc(w2)+'</b>' + ((cfg.phon && p2) ? ' <span class="spk" data-w="'+esc(w2)+'" title="点击发音">🔊</span><span class="spkphon" data-w="'+esc(w2)+'" title="点击发音" style="color:#98a2ae;font-size:13px">/'+esc(p2)+'/</span>' : '');
+    b.innerHTML = en2zh ? esc(t2) : '<b>'+esc(w2)+'</b>' + ((cfg.phon && p2) ? ' <span class="spk" data-w="'+esc(w2)+'" title="点击发音">🔊</span><span class="spkphon" data-w="'+esc(w2)+'" title="点击发音" style="color:#98a2ae;font-size:13px">/'+esc(p2)+'/*'+w2.length+'</span>' : '');
     // 双击 = 弹释义窗; 单击 = 答题 (300ms 内若无第 2 次点击再提交)
     let _dcLast = 0, _dcPending = null;
     b.onclick = () => {
@@ -1440,7 +1440,7 @@ function renderReview(){
   else tag = '<span style="color:var(--bad);font-weight:700">✗ 答错</span><div style="margin-top:4px">你选「'+esc(e.chosen)+'」 · 正确「'+esc(e.right)+'」</div>';
   $('opts').innerHTML = '';
   $('fb').textContent = '';
-  $('qCard').innerHTML = '<div class="qword'+(nb[w]?' nb':'')+'" data-w="'+escA(w)+'" data-p="'+escA(p||'')+'" title="双击进入拼写">'+esc(w)+'</div>' + (p?'<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/</span></div>':'') +
+  $('qCard').innerHTML = '<div class="qword'+(nb[w]?' nb':'')+'" data-w="'+escA(w)+'" data-p="'+escA(p||'')+'" title="双击进入拼写">'+esc(w)+'</div>' + (p?'<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/*'+w.length+'</span></div>':'') +
     '<div class="qtrans" style="margin-top:8px">'+esc(t)+'</div>' +
     '<div style="margin-top:10px;font-size:13px;color:var(--sub);text-align:left">'+tag+'</div>';
   const bb = document.createElement('button');        // 回顾页: 加入/移出不熟本
@@ -1624,7 +1624,7 @@ function endRound(){
     ? '<div class="lbl" style="margin:0 0 6px">本轮仍在错题本（按累计错误次数）</div>' +
       list.map(x => { const i = W.findIndex(v => v[0]===x.w); const [,,r,t] = W[i];
         return '<div class="wrow"><div class="wrank">'+(bankBadge(i) || '#'+r)+'</div><div class="wbody"><span class="w">'+esc(x.w)+'</span>'+
-          (W[i][1]?'<span class="p">/'+esc(W[i][1])+'/</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
+          (W[i][1]?'<span class="p">/'+esc(W[i][1])+'/*'+x.w.length+'</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
           '<div class="wn"><span class="c">×'+err[x.w].n+'</span><div class="d">连对'+err[x.w].s+'/'+NEED+'</div></div></div>'; }).join('')
     : '<div class="empty">本轮没有遗留错词，漂亮！</div>';
   show('result');
@@ -1712,7 +1712,7 @@ function renderBook(){
       ? '<div class="spellBox" data-spell-w="'+escA(w)+'">'+
           '<span class="spellMask">???</span>'+
           '<span class="spellAns"><span class="w">'+esc(w)+'</span></span>'+
-          (p?'<span class="p" title="双击展开完整音标">/'+esc(p)+'/</span>':'')+
+          (p?'<span class="p" title="双击展开完整音标">/'+esc(p)+'/*'+w.length+'</span>':'')+
           '<span class="spellSpk" data-w="'+escA(w)+'" title="点击发音">🔊</span>'+
         '</div>'
       : '<span class="w">'+esc(w)+'</span>';
@@ -1729,7 +1729,7 @@ function renderBook(){
       (bankBadge(e.i) || '#'+rk)+
       spellBtnHtml+
       '</div><div class="wbody">'+
-      wHtml+((!hideEn && p)?'<span class="p">/'+esc(p)+'/</span>':'')+
+      wHtml+((!hideEn && p)?'<span class="p">/'+esc(p)+'/*'+w.length+'</span>':'')+
       tHtml+'</div><div class="wn">'+badge+
       '<div class="d">'+sub+'</div>'+
       (bookTab==='nb' ? '<span class="rm" data-w="'+esc(w)+'" onclick="nbDel(this.dataset.w)">✕ 移出</span>' :
@@ -1889,7 +1889,7 @@ function openSpellModal(box, wArg, pArg){
   $('spellModalHint').innerHTML = '请拼写下面的英文单词 <span style="opacity:.55;font-weight:normal">(' + _spellW.length + ' 个字母)</span>';
   if (phon){
     $('spellModalPhon').innerHTML = '<span class="spk" data-w="'+escA(w)+'" title="点击发音" style="font-size:16px">🔊</span>'+
-                                    '<span class="spkphon" data-w="'+escA(w)+'">/'+esc(phon)+'/</span>';
+                                    '<span class="spkphon" data-w="'+escA(w)+'">/'+esc(phon)+'/*'+w.length+'</span>';
     $('spellModalPhon').style.display = '';
   } else {
     $('spellModalPhon').innerHTML = '';
@@ -2158,7 +2158,7 @@ function openRelatedModal(cat, word, phon){
   $('relatedModalWord').textContent = word;
   if (phon){
     $('relatedModalPhon').innerHTML = '<span class="spk" data-w="'+escA(word)+'" title="点击发音" style="font-size:16px">🔊</span>'+
-                                      '<span class="spkphon" data-w="'+escA(word)+'">/'+esc(phon)+'/</span>';
+                                      '<span class="spkphon" data-w="'+escA(word)+'">/'+esc(phon)+'/*'+word.length+'</span>';
     $('relatedModalPhon').style.display = '';
   } else {
     $('relatedModalPhon').innerHTML = '';
