@@ -304,6 +304,15 @@ input:focus{outline:none;border-color:var(--brand)}
 .qcardCorner.tr{top:6px;right:6px}
 .qcardCorner.bl{bottom:6px;left:6px}
 .qcardCorner.br{bottom:6px;right:6px}
+.qcardCorner.bc{bottom:6px;left:50%;margin-left:-17px}
+/* 例句弹框 */
+.exampleBox{margin-top:12px;text-align:left}
+.exampleEn{font-size:16px;line-height:1.85;color:var(--ink)}
+.exampleEn b{color:var(--brand);font-weight:800}
+.exampleZh{font-size:14px;line-height:1.85;color:var(--sub);margin-top:6px}
+.exampleGloss{font-size:13px;color:var(--sub);margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);line-height:1.65;word-break:break-word}
+.exampleSpeak{margin-top:12px;width:100%;padding:10px;border:none;border-radius:10px;background:var(--chip);color:var(--brand);font-size:14px;font-weight:600;cursor:pointer;user-select:none}
+.exampleSpeak:hover{background:var(--line)}
 /* 关联词弹框: 一行 = 词 + 释义摘要 */
 .relatedList{margin-top:12px;text-align:left;max-height:54vh;overflow:auto}
 .relatedItem{
@@ -1349,12 +1358,13 @@ function renderQ(){                                  // 渲染当前待答的题
   const [w,p,r,t] = W[i];
   const e = err[w];
   const en2zh = cfg.dir==='en2zh';
-  // 卡片 4 角的近/反/联/像 按钮: 各数据源查不到就置灰 + label 改 "无"
+  // 卡片 4 角的近/反/联/像 + 底部居中的例 按钮: 各数据源查不到就置灰 + label 改 "无"
   const _has = (cat) => {
     if (cat==='syn') return findSynonyms(w,1).length>0;
     if (cat==='ant') return findAntonyms(w,1).length>0;
     if (cat==='rel') return findRelated(w,1).length>0;
     if (cat==='lk')  return findLookalikes(w,1).length>0;
+    if (cat==='ex')  return _wIdx(w) >= 0;
   };
   const cornerHtml = (cat, lbl, pos) => {
     const empty = !_has(cat);
@@ -1370,6 +1380,7 @@ function renderQ(){                                  // 渲染当前待答的题
       cornerHtml('ant','反','tr') +
       cornerHtml('rel','联','bl') +
       cornerHtml('syn','近','br') +
+      cornerHtml('ex','例','bc') +
     (en2zh
       ? '<div class="qword'+(nb[w]?' nb':'')+'" data-w="'+escA(w)+'" data-p="'+escA(p||'')+'" title="双击进入拼写">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/*'+w.length+'</span></div>' : '')
       : '<div class="qtrans">'+esc(t)+'</div>');
@@ -2078,7 +2089,105 @@ function _buildPrimaryIdx(){
 _buildPrimaryIdx();
 
 // 名称对应
-const REL_CAT = { syn:'近义词', ant:'反义词', rel:'词族 / 同根', lk:'相近形 (字母差 1 个)' };
+const REL_CAT = { syn:'近义词', ant:'反义词', rel:'词族 / 同根', lk:'相近形 (字母差 1 个)', ex:'例句' };
+
+/* ---------- 例句生成 (按词性套句式) ---------- */
+// 从译文开头的词性标签判定词性: n. / vt. / vi. / v. / adj. / adv. …
+function _posOf(t){
+  const m = (t||'').match(/^\s*([a-z]+)\./i);
+  if (!m) return '';
+  const p = m[1].toLowerCase();
+  if (p === 'vt') return 'vt';
+  if (p === 'vi') return 'vi';
+  if (p === 'v')  return 'vt';
+  if (p === 'adj' || p === 'a') return 'adj';
+  if (p === 'adv') return 'adv';
+  if (p === 'n')  return 'n';
+  return '';
+}
+// 句式库: {w}=英文词  {zh}=主中文意思
+// 动词一律用复数/第二人称主语 + 动词原形, 避开第三人称 -s 与不规则变形
+// 名词一律用 the, 兼顾可数/不可数
+const EX_FRAMES = {
+  n: [
+    { en:'The {w} is right there on the table.',      zh:'关于{zh}的事情挺有意思的。' },
+    { en:'I have never seen that {w} before.',          zh:'我以前从没见过{zh}。' },
+    { en:'We talked about the {w} yesterday.',          zh:'我们昨天聊了聊{zh}。' },
+    { en:'Bring the {w} to the meeting tomorrow.',      zh:'明天把{zh}带到会上。' },
+  ],
+  vt: [
+    { en:'We must {w} it before Friday.',              zh:'我们得在周五之前{zh}。' },
+    { en:'They decided to {w} the whole thing.',       zh:'他们决定{zh}这件事。' },
+    { en:'Please {w} this box right now.',             zh:'请现在{zh}这个箱子。' },
+  ],
+  vi: [
+    { en:'They {w} every single day.',                zh:'他们每天都{zh}。' },
+    { en:'We like to {w} after lunch.',                zh:'我们喜欢午饭后{zh}。' },
+    { en:'The baby started to {w} at noon.',           zh:'宝宝中午开始{zh}了。' },
+  ],
+  adj: [
+    { en:'It was a really {w} day.',                  zh:'那是相当{zh}的一天。' },
+    { en:'She looked {w} in that blue coat.',         zh:'她穿那件蓝外套看起来很{zh}。' },
+    { en:'We had a {w} time at the party.',           zh:'我们在聚会上玩得很{zh}。' },
+  ],
+  adv: [
+    { en:'He finished the work {w}.',                 zh:'他{zh}完成了工作。' },
+    { en:'She answered the question {w}.',            zh:'她{zh}回答了这个问题。' },
+  ],
+  _d: [
+    { en:'The word "{w}" comes up a lot in this chapter.', zh:'「{zh}」这个词我以前没见过。' },
+    { en:'Have you ever used "{w}" in a sentence?',       zh:'你在句子里用过「{zh}」吗？' },
+  ],
+};
+// be 之类原形会破格的词单独给句式
+const EX_OVERRIDE = {
+  'be': { en:'It is going to be a long day.',   zh:'这会是很漫长的一天。' },
+  'am': { en:'I am going to be late today.',    zh:'我今天要迟到了。' },
+  'are':{ en:'They are going to be very late.', zh:'他们要迟到了。' },
+  'is': { en:'This is going to be a good day.', zh:'这会是很棒的一天。' },
+  'was':{ en:'It was going to be a long day.',  zh:'那天本来会很长。' },
+  'were':{en:'They were going to be late.',     zh:'他们当时要迟到了。' },
+};
+// 功能词 (冠词/介词/助动词/代词) 没法造像样的例句, 走通用句式
+const EX_FUNC = new Set(['a','an','the','of','to','in','on','at','for','and','or','but',
+  'is','am','are','was','were','be','been','being','do','does','did','have','has','had',
+  'it','he','she','they','we','you','i','this','that','there','here','as','by','from',
+  'with','so','if','than','then','too','very','can','will','would','could','should',
+  'may','might','must','not','no','yes','up','out','down','over','under','about','into']);
+// 用词本身算个稳定 hash, 同一个词每次打开例句都一样 (不随机跳)
+function _exHash(s){ let h=2166136261; for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return h>>>0; }
+// 例句用的主中文意思: 允许 1 个字 (网/跑/想 这种主意思就是单字, 不能按近义词那套 >=2 的过滤)
+// 另外: 词条里复合词被逗号拆开过 (walk → "vi.步,行,走" 本意是 "步行"),
+//       前两段都是单字时合并回双字词
+function _meaningForExample(t){
+  if (!t) return '';
+  const s = t.replace(/^\s*[a-zA-Z]+\.?\s*/, '').trim();
+  if (!s) return '';
+  const cs = s.split(/[,;\/]/).map(x => x.replace(/^[(（]+|[)）]+$/g, '').trim()).filter(Boolean);
+  if (!cs.length) return '';
+  let out = cs[0];
+  if (out.length === 1 && cs[1] && cs[1].length === 1) out += cs[1];
+  return out;
+}
+function buildExample(word, tran){
+  const lw = word.toLowerCase();
+  const ov = EX_OVERRIDE[lw];
+  const pos = _posOf(tran);
+  let zh = _meaningForExample(tran);
+  if (pos === 'adj') zh = zh.replace(/的$/, '');        // adj 去掉尾「的」, 免得 "很快乐的"
+  let f;
+  if (ov) f = ov;
+  else if (EX_FUNC.has(lw)) f = EX_FRAMES._d[_exHash(word) % EX_FRAMES._d.length];
+  else {
+    const arr = EX_FRAMES[pos] || EX_FRAMES._d;
+    f = arr[_exHash(word) % arr.length];
+  }
+  return {
+    en: f.en.replace('{w}', word),
+    zh: zh ? f.zh.replace('{zh}', zh) : f.zh.replace(/\{zh\}/g, ''),
+    pos: pos || 'other',
+  };
+}
 
 // 工具: 在 W[] 里按词查 idx
 function _wIdx(w){ for (let i=0;i<W.length;i++) if (W[i][0]===w) return i; return -1; }
@@ -2206,11 +2315,52 @@ function _initRelatedModal(){
     if (!btn || btn.classList.contains('empty')) return;
     e.preventDefault();
     e.stopPropagation();
+    if (btn.dataset.cat === 'ex'){ openExampleModal(btn.dataset.w); return; }
     openRelatedModal(btn.dataset.cat, btn.dataset.w, btn.dataset.p);
   });
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _initRelatedModal);
 else _initRelatedModal();
+
+/* ---------- 例句弹框 ---------- */
+let _exEn = '';
+function openExampleModal(word){
+  const idx = _wIdx(word);
+  if (idx < 0) return;
+  const [w, p, , t] = W[idx];
+  const ex = buildExample(w, t);
+  _exEn = ex.en;
+  $('exampleModalWord').textContent = w;
+  if (p){
+    $('exampleModalPhon').innerHTML = '<span class="spk" data-w="'+escA(w)+'" title="点击发音" style="font-size:16px">🔊</span>'+
+                                      '<span class="spkphon" data-w="'+escA(w)+'">/'+esc(p)+'/</span>';
+    $('exampleModalPhon').style.display = '';
+  } else {
+    $('exampleModalPhon').innerHTML = '';
+    $('exampleModalPhon').style.display = 'none';
+  }
+  // 例句里的目标词加粗高亮
+  $('exampleModalEn').innerHTML = esc(ex.en).split(esc(w)).join('<b>'+esc(w)+'</b>');
+  $('exampleModalZh').textContent = ex.zh;
+  $('exampleModalGloss').textContent = '词义 ' + (t || '');
+  $('exampleModal').classList.remove('hide');
+}
+function closeExampleModal(){
+  $('exampleModal').classList.add('hide');
+  _exEn = '';
+}
+function _initExampleModal(){
+  $('exampleModal').addEventListener('click', e => {
+    if (e.target === $('exampleModal')) closeExampleModal();
+  });
+  document.addEventListener('keydown', e => {
+    if ($('exampleModal').classList.contains('hide')) return;
+    if (e.key === 'Escape'){ e.preventDefault(); closeExampleModal(); }
+  });
+  $('exampleModalSpeak').onclick = () => { if (_exEn) speak(_exEn); };
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _initExampleModal);
+else _initExampleModal();
 // 回到顶部: 学习记录页下拉超过 300px 出现悬浮按钮
 window.addEventListener('scroll', syncTopBtn, {passive:true});
 $('btnTop').onclick = () => window.scrollTo({top:0, behavior:'smooth'});
@@ -2335,6 +2485,22 @@ try {
     <div class="optmodal-phon" id="spellModalPhon" style="font-size:13px;margin-bottom:8px"></div>
     <div class="spellLetters" id="spellLetters"></div>
     <div class="spellModalFb" id="spellModalFb"></div>
+  </div>
+</div>
+
+<!-- 例句弹框: 答题页卡片底部「例」按钮唤起, 按词性生成例句 -->
+<div id="exampleModal" class="optmodal hide">
+  <div class="optmodal-card compact">
+    <button type="button" class="spellClose" aria-label="关闭" onclick="closeExampleModal()">×</button>
+    <div class="relatedCatRow" id="exampleModalCat">例句</div>
+    <div class="optmodal-word" id="exampleModalWord" style="font-size:22px;margin-bottom:2px">???</div>
+    <div class="optmodal-phon" id="exampleModalPhon" style="font-size:13px;margin-bottom:8px"></div>
+    <div class="exampleBox">
+      <div class="exampleEn" id="exampleModalEn"></div>
+      <div class="exampleZh" id="exampleModalZh"></div>
+      <div class="exampleGloss" id="exampleModalGloss"></div>
+      <button type="button" class="exampleSpeak" id="exampleModalSpeak">🔊 朗读例句</button>
+    </div>
   </div>
 </div>
 </body>
