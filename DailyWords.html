@@ -304,7 +304,7 @@ input:focus{outline:none;border-color:var(--brand)}
 .qcardCorner.tr{top:6px;right:6px}
 .qcardCorner.bl{bottom:6px;left:6px}
 .qcardCorner.br{bottom:6px;right:6px}
-.qcardCorner.bc{bottom:6px;left:50%;margin-left:-17px}
+.qcardCorner.lm{bottom:46px;left:6px}
 /* 例句弹框 */
 .exampleBox{margin-top:12px;text-align:left}
 .exampleEn{font-size:16px;line-height:1.85;color:var(--ink)}
@@ -1380,7 +1380,7 @@ function renderQ(){                                  // 渲染当前待答的题
       cornerHtml('ant','反','tr') +
       cornerHtml('rel','联','bl') +
       cornerHtml('syn','近','br') +
-      cornerHtml('ex','例','bc') +
+      cornerHtml('ex','例','lm') +
     (en2zh
       ? '<div class="qword'+(nb[w]?' nb':'')+'" data-w="'+escA(w)+'" data-p="'+escA(p||'')+'" title="双击进入拼写">'+esc(w)+'</div>' + (cfg.phon && p ? '<div class="qphon"><span class="spk" data-w="'+esc(w)+'" title="点击发音">🔊</span> <span class="spkphon" data-w="'+esc(w)+'" title="点击发音">/'+esc(p)+'/*'+w.length+'</span></div>' : '')
       : '<div class="qtrans">'+esc(t)+'</div>');
