@@ -167,6 +167,9 @@ input:focus{outline:none;border-color:var(--brand)}
 .wbody{flex:1;min-width:0}
 .wbody .w{font-weight:700;font-size:16px;color:var(--brand)}
 .wbody .p{font-size:12px;color:#98a2ae;margin-left:6px}
+/* 列表里的音标改成可点读 (.spkphon) 后, 保持原来的字号/缩进/透明度 */
+.wbody .p.spkphon{padding:0;opacity:1}
+.wbody .p.spkphon:hover{background:var(--chip);opacity:1}
 .wbody .t{font-size:13px;color:var(--sub);margin-top:2px;line-height:1.5}
 .wn{flex:0 0 auto;text-align:right}
 .wn .c{background:var(--badbg);color:var(--bad);font-weight:800;font-size:13px;padding:3px 9px;border-radius:99px}
@@ -235,6 +238,7 @@ input:focus{outline:none;border-color:var(--brand)}
   max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   display:inline-block;vertical-align:middle;cursor:pointer;
   border-radius:4px;transition:background .15s,padding .15s,max-width .15s;
+  padding:0;opacity:1;                     /* 覆写 .spkphon 的 padding/opacity, 保持原排版 */
 }
 .spellBox .p:hover{background:rgba(127,127,127,.08)}
 .spellBox .p.expanded{
@@ -606,10 +610,15 @@ function speak(w){
   u.rate = 0.9;
   speechSynthesis.speak(u);
 }
+// 同一元素 350ms 内只读一次 —— 双击音标展开完整音标时不会连着读两遍
+const _lastSpeak = new WeakMap();
 document.addEventListener('click', e => {
   const t = e.target.closest('.spk, .spkphon');
   if (!t) return;
   e.stopPropagation(); e.preventDefault();
+  const now = Date.now();
+  if (now - (_lastSpeak.get(t) || 0) < 350) return;
+  _lastSpeak.set(t, now);
   speak(t.dataset.w);
 });
 
@@ -1020,7 +1029,7 @@ function renderDayBook(){
     const st = dayWordState(w);
     return '<div class="wrow"><div class="wrank">'+(bankBadge(e.i) || '#'+rk)+'</div>'+
       '<div class="wbody"><span class="w" data-w="'+escA(w)+'" title="点击发音">'+esc(w)+'</span>'+
-      (p?'<span class="p">/'+esc(p)+'/*'+w.length+'</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
+      (p?'<span class="p spkphon" data-w="'+escA(w)+'" title="点击发音">/'+esc(p)+'/*'+w.length+'</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
       '<div class="wn">'+st.b+'<div class="d">'+st.d+'</div></div></div>';
   }).join('') : '<div class="empty">'+empty+'</div>';
   const paged = pages > 1;                            // 一页装得下时不显示条数与翻页
@@ -1635,7 +1644,7 @@ function endRound(){
     ? '<div class="lbl" style="margin:0 0 6px">本轮仍在错题本（按累计错误次数）</div>' +
       list.map(x => { const i = W.findIndex(v => v[0]===x.w); const [,,r,t] = W[i];
         return '<div class="wrow"><div class="wrank">'+(bankBadge(i) || '#'+r)+'</div><div class="wbody"><span class="w">'+esc(x.w)+'</span>'+
-          (W[i][1]?'<span class="p">/'+esc(W[i][1])+'/*'+x.w.length+'</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
+          (W[i][1]?'<span class="p spkphon" data-w="'+escA(x.w)+'" title="点击发音">/'+esc(W[i][1])+'/*'+x.w.length+'</span>':'')+'<div class="t">'+esc(t)+'</div></div>'+
           '<div class="wn"><span class="c">×'+err[x.w].n+'</span><div class="d">连对'+err[x.w].s+'/'+NEED+'</div></div></div>'; }).join('')
     : '<div class="empty">本轮没有遗留错词，漂亮！</div>';
   show('result');
@@ -1723,7 +1732,7 @@ function renderBook(){
       ? '<div class="spellBox" data-spell-w="'+escA(w)+'">'+
           '<span class="spellMask">???</span>'+
           '<span class="spellAns"><span class="w">'+esc(w)+'</span></span>'+
-          (p?'<span class="p" title="双击展开完整音标">/'+esc(p)+'/*'+w.length+'</span>':'')+
+          (p?'<span class="p spkphon" data-w="'+escA(w)+'" title="点击发音 · 双击展开完整音标">/'+esc(p)+'/*'+w.length+'</span>':'')+
           '<span class="spellSpk" data-w="'+escA(w)+'" title="点击发音">🔊</span>'+
         '</div>'
       : '<span class="w">'+esc(w)+'</span>';
@@ -1740,7 +1749,7 @@ function renderBook(){
       (bankBadge(e.i) || '#'+rk)+
       spellBtnHtml+
       '</div><div class="wbody">'+
-      wHtml+((!hideEn && p)?'<span class="p">/'+esc(p)+'/*'+w.length+'</span>':'')+
+      wHtml+((!hideEn && p)?'<span class="p spkphon" data-w="'+escA(w)+'" title="点击发音">/'+esc(p)+'/*'+w.length+'</span>':'')+
       tHtml+'</div><div class="wn">'+badge+
       '<div class="d">'+sub+'</div>'+
       (bookTab==='nb' ? '<span class="rm" data-w="'+esc(w)+'" onclick="nbDel(this.dataset.w)">✕ 移出</span>' :
@@ -2105,20 +2114,20 @@ function _posOf(t){
   if (p === 'n')  return 'n';
   return '';
 }
-// 句式库: {w}=英文词  {zh}=主中文意思
+// 句式库: {w}=英文词  {zh}=主中文意思  {a}=冠词 (a/an)
 // 动词一律用复数/第二人称主语 + 动词原形, 避开第三人称 -s 与不规则变形
 // 名词一律用 the, 兼顾可数/不可数
 const EX_FRAMES = {
   n: [
-    { en:'The {w} is right there on the table.',      zh:'关于{zh}的事情挺有意思的。' },
-    { en:'I have never seen that {w} before.',          zh:'我以前从没见过{zh}。' },
-    { en:'We talked about the {w} yesterday.',          zh:'我们昨天聊了聊{zh}。' },
-    { en:'Bring the {w} to the meeting tomorrow.',      zh:'明天把{zh}带到会上。' },
+    { en:'We talked about the {w} yesterday.',        zh:'我们昨天聊了聊{zh}。' },
+    { en:'I learned a lot about the {w}.',             zh:'我对{zh}了解了很多。' },
+    { en:'Everyone knows about the {w}.',              zh:'{zh}对他来说很重要。' },
+    { en:'She wrote about the {w} in her book.',       zh:'她在书里写了{zh}。' },
   ],
   vt: [
-    { en:'We must {w} it before Friday.',              zh:'我们得在周五之前{zh}。' },
-    { en:'They decided to {w} the whole thing.',       zh:'他们决定{zh}这件事。' },
-    { en:'Please {w} this box right now.',             zh:'请现在{zh}这个箱子。' },
+    { en:'We must {w} it before Friday.',              zh:'我们得在周五之前{zh}它。' },
+    { en:'They decided to {w} it right away.',         zh:'他们马上决定{zh}它。' },
+    { en:'Please {w} it right now.',                   zh:'请现在{zh}它。' },
   ],
   vi: [
     { en:'They {w} every single day.',                zh:'他们每天都{zh}。' },
@@ -2126,9 +2135,10 @@ const EX_FRAMES = {
     { en:'The baby started to {w} at noon.',           zh:'宝宝中午开始{zh}了。' },
   ],
   adj: [
-    { en:'It was a really {w} day.',                  zh:'那是相当{zh}的一天。' },
-    { en:'She looked {w} in that blue coat.',         zh:'她穿那件蓝外套看起来很{zh}。' },
-    { en:'We had a {w} time at the party.',           zh:'我们在聚会上玩得很{zh}。' },
+    { en:'It was {a}{w} day.',                        zh:'那个东西看上去{zh}。' },
+    { en:'She looked {w} in that blue coat.',         zh:'那个东西看上去{zh}。' },
+    { en:'We had {a}{w} time at the party.',          zh:'那个东西看上去{zh}。' },
+    { en:'It was {a}{w} experience.',                  zh:'那个东西看上去{zh}。' },
   ],
   adv: [
     { en:'He finished the work {w}.',                 zh:'他{zh}完成了工作。' },
@@ -2139,6 +2149,16 @@ const EX_FRAMES = {
     { en:'Have you ever used "{w}" in a sentence?',       zh:'你在句子里用过「{zh}」吗？' },
   ],
 };
+// a / an 判定 (元音音素开头用 an; u 开头的例外, h 哑音的例外)
+const EX_A_EXCEPT = /^(uni|use|user|usu|euro|one|once|ubiq|ukulele)/i;
+const EX_AN_EXCEPT = /^(hour|honest|honor|heir)/i;
+function _anWord(w){
+  const c = (w||'').charAt(0).toLowerCase();
+  if (!c) return 'a ';
+  if (EX_AN_EXCEPT.test(w)) return 'an ';
+  if (EX_A_EXCEPT.test(w)) return 'a ';
+  return 'aeiou'.indexOf(c) >= 0 ? 'an ' : 'a ';
+}
 // be 之类原形会破格的词单独给句式
 const EX_OVERRIDE = {
   'be': { en:'It is going to be a long day.',   zh:'这会是很漫长的一天。' },
@@ -2148,33 +2168,32 @@ const EX_OVERRIDE = {
   'was':{ en:'It was going to be a long day.',  zh:'那天本来会很长。' },
   'were':{en:'They were going to be late.',     zh:'他们当时要迟到了。' },
 };
-// 功能词 (冠词/介词/助动词/代词) 没法造像样的例句, 走通用句式
+// 功能词 (冠词/介词/助动词/代词/限定词) 没法造像样的例句, 走通用句式
 const EX_FUNC = new Set(['a','an','the','of','to','in','on','at','for','and','or','but',
   'is','am','are','was','were','be','been','being','do','does','did','have','has','had',
   'it','he','she','they','we','you','i','this','that','there','here','as','by','from',
   'with','so','if','than','then','too','very','can','will','would','could','should',
-  'may','might','must','not','no','yes','up','out','down','over','under','about','into']);
+  'may','might','must','not','no','yes','up','out','down','over','under','about','into',
+  // 限定词/数量词: 单独当形容词用会出 "an all day" 这种怪句
+  'all','some','any','many','much','more','most','few','several','both','each',
+  'either','neither','another','such','own','one','two','three','four','five','six',
+  'seven','eight','nine','ten','what','which','who','whose','whom']);
 // 用词本身算个稳定 hash, 同一个词每次打开例句都一样 (不随机跳)
 function _exHash(s){ let h=2166136261; for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return h>>>0; }
-// 例句用的主中文意思: 允许 1 个字 (网/跑/想 这种主意思就是单字, 不能按近义词那套 >=2 的过滤)
-// 另外: 词条里复合词被逗号拆开过 (walk → "vi.步,行,走" 本意是 "步行"),
-//       前两段都是单字时合并回双字词
+// 例句用的主中文意思: 允许 1 个字 (网/跑/说 这种主意思就是单字, 不能按近义词那套 >=2 的过滤)
+// 注意: 不要把相邻两段单字合并 —— "说,讲" 会被拼成没词的 "说讲"
 function _meaningForExample(t){
   if (!t) return '';
   const s = t.replace(/^\s*[a-zA-Z]+\.?\s*/, '').trim();
   if (!s) return '';
   const cs = s.split(/[,;\/]/).map(x => x.replace(/^[(（]+|[)）]+$/g, '').trim()).filter(Boolean);
-  if (!cs.length) return '';
-  let out = cs[0];
-  if (out.length === 1 && cs[1] && cs[1].length === 1) out += cs[1];
-  return out;
+  return cs.length ? cs[0] : '';
 }
 function buildExample(word, tran){
   const lw = word.toLowerCase();
   const ov = EX_OVERRIDE[lw];
   const pos = _posOf(tran);
-  let zh = _meaningForExample(tran);
-  if (pos === 'adj') zh = zh.replace(/的$/, '');        // adj 去掉尾「的」, 免得 "很快乐的"
+  const zh = _meaningForExample(tran);
   let f;
   if (ov) f = ov;
   else if (EX_FUNC.has(lw)) f = EX_FRAMES._d[_exHash(word) % EX_FRAMES._d.length];
@@ -2182,8 +2201,9 @@ function buildExample(word, tran){
     const arr = EX_FRAMES[pos] || EX_FRAMES._d;
     f = arr[_exHash(word) % arr.length];
   }
+  const art = _anWord(word);
   return {
-    en: f.en.replace('{w}', word),
+    en: f.en.replace(/\{a\}/g, art).replace('{w}', word),
     zh: zh ? f.zh.replace('{zh}', zh) : f.zh.replace(/\{zh\}/g, ''),
     pos: pos || 'other',
   };
